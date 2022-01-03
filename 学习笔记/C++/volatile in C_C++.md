@@ -101,7 +101,7 @@ typedef enum memory_order {
 | memory_order_consume | 后面依赖此原子变量的访存指令勿重排至此条指令之前 |
 | memory_order_acquire | 后面访存指令勿重排至此条指令之前 |
 | memory_order_release | 前面访存指令勿重排至此条指令之后。当此条指令的结果对其他线程可见后，之前的所有指令都可见 |
-| memory_order_acq_rel | acquire + release语意 |
+| memory_order_acq_rel | acquire + release 语意 |
 | memory_order_seq_cst | acq_rel 语意外加所有使用 seq_cst 的指令有严格地全序关系 |
 
 ## 缓存一致性
@@ -175,7 +175,7 @@ b = *p;
 
 
 ## 顺序性
-我们再回过头去看看最开始的例子，声明一个 volatile 的 flag 变量。一个线程(Thread1)在完成一些操作后，会修改这个变量。而另外一个线程(Thread2)，则不断读取这个 flag 变量，由于 flag 变量被声明了 volatile 属性，因此编译器在编译时，并不会每次都从寄存器中读取此变量，同时也不会通过各种激进的优化（直接将 if (flag == true) 改写为 if (false == true)）。在 if 条件的内部，由于 flag == true，那么假设Thread1 中的 something 操作一定已经完成了，在基于这个假设的基础上，继续进行下面的 other things 操作。
+我们再回过头去看看最开始的例子，声明一个 volatile 的 flag 变量。一个线程 Thread1 在完成一些操作后，会修改这个变量。而另外一个线程 Thread2，则不断读取这个 flag 变量，由于 flag 变量被声明了 volatile 属性，因此编译器在编译时，并不会每次都从寄存器中读取此变量，同时也不会通过各种激进的优化（直接将 `if (flag == true)` 改写为 `if (false == true)`）。在 if 条件的内部，由于 flag == true，那么假设 Thread1 中的 something 操作一定已经完成了，在基于这个假设的基础上，继续进行下面的 other things 操作。
 
 
 从上面的描述中我们知道，因为 `flag` 是 `volatile` 变量，所以不会因为编译优化，把 Thread2 中的 `if(flag)` 优化成 `if(false)` ，这个看似很完美的代码有如下问题：
@@ -183,11 +183,11 @@ b = *p;
 1. **`a` 是普通变量，因为编译优化，可能对 Thread1 中 a 和 flag 赋值操作重排，即 `flag` 被置为 `true` 时， `a` 不一定被置为 `1` 了。**
 1. **由于 volatile 并不保证内存可见性，因此 Thread1 中修改了 flag 后，Thread2 可能永远也读不到新值**
 
-那把 `a` 也加上 `volatile` 限制呢，按照官方文档的说法，编译器不会对 Thread1 中 a 和 flag 变量的赋值操作重排，即在编译得到的二进制中，a 的赋值指令一定在flag的赋值指令之前，看起来似乎没有问题了。但是，CPU最终执行的时候会乱序执行，虽然在机器码中，是先给a赋值，再给 flag 赋值，然而 CPU 确不保证这个执行顺序。
+那把 `a` 也加上 `volatile` 限制呢，按照官方文档的说法，编译器不会对 Thread1 中 a 和 flag 变量的赋值操作重排，即在编译得到的二进制中，a 的赋值指令一定在 flag 的赋值指令之前，看起来似乎没有问题了。但是，CPU 最终执行的时候会乱序执行，虽然在机器码中，是先给 a 赋值，再给 flag 赋值，然而 CPU 确不保证这个执行顺序。
 
 
 > **Tips**：
-> 实际上在x86架构中，load-load 是不会被乱序的，上面的情况不会出现。然而，在 ARM 和 POWER 中，却是允许 load-load 乱序的。[https://en.wikipedia.org/wiki/Memory_ordering](https://en.wikipedia.org/wiki/Memory_ordering)
+> 实际上在 x86 架构中，load-load 是不会被乱序的，上面的情况不会出现。然而，在 ARM 和 POWER 中，却是允许 load-load 乱序的。[https://en.wikipedia.org/wiki/Memory_ordering](https://en.wikipedia.org/wiki/Memory_ordering)
 
 # Java中的volatile
 JVM有自己的内存模型，Java 加强了 `volatile` 语义：
@@ -201,7 +201,7 @@ JVM有自己的内存模型，Java 加强了 `volatile` 语义：
 
 
 # 总结
-总结一下C/C++中的 `volatile` 保证了：
+总结一下 C/C++ 中的 `volatile` 保证了：
 
 1. 不会在两个操作之间把 `volatile` 变量缓存在寄存器中。在多任务、中断、甚至 setjmp 环境下，变量可能被其他的程序改变，编译器自己无法知道，volatile 就是告诉编译器这种情况。
 1. 不会把 `volatile` 变量优化掉
@@ -216,10 +216,10 @@ JVM有自己的内存模型，Java 加强了 `volatile` 语义：
 
 
 
-Summary:
+**Summary**:
 
 
-- volatile 在 java 和 c/c++ 中的语义不一样
+- volatile 在 java 和 C/C++ 中的语义不一样
 - C/C++ 中简单赋值操作是否保证原子性？ a = 5
 - MESI 因为有 Store Buffer 和 Invalidate Queue 的存在，并不能保证一致性，必须使用内存屏障
 - 指令优化例子：连续两次读一个指针，对于一些读外设内存的场景，不能优化成只读一次，两个语句返回相同的值，因为在两次读之间，同样一个地址的数据可能已经发生变化。

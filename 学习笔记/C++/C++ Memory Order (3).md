@@ -1,91 +1,7 @@
-相关定义
-```cpp
-// Defined in header <atomic>
-typedef enum memory_order {
-    memory_order_relaxed,
-    memory_order_consume,
-    memory_order_acquire,
-    memory_order_release,
-    memory_order_acq_rel,
-    memory_order_seq_cst
-} memory_order;
-
-enum class memory_order : /*unspecified*/ {
-    relaxed, consume, acquire, release, acq_rel, seq_cst
-};
-inline constexpr memory_order memory_order_relaxed = memory_order::relaxed;
-inline constexpr memory_order memory_order_consume = memory_order::consume;
-inline constexpr memory_order memory_order_acquire = memory_order::acquire;
-inline constexpr memory_order memory_order_release = memory_order::release;
-inline constexpr memory_order memory_order_acq_rel = memory_order::acq_rel;
-inline constexpr memory_order memory_order_seq_cst = memory_order::seq_cst;
-```
-std::memory_order specifies how memory accesses, including regular, non-atomic memory accesses, are to be ordered around an atomic operation. Absent any constraints on a multi-core system, when multiple threads simultaneously read and write to several variables, ==one thread can observe the values change in an order different from the order another thread wrote them. Indeed, the apparent order of changes can even differ among multiple reader threads==. ==Some similar effects can occur even on uniprocessor systems due to compiler transformations allowed by the memory model==.
-
-
-The default behavior of all atomic operations in the library provides for _sequentially consistent ordering_ (see discussion below). That default can hurt performance, but the library's atomic operations can be given an additional std::memory_order argument to specify the exact constraints, beyond atomicity, that the compiler and processor must enforce for that operation.
-
-
-# C++ 中的6种 memory order
-## memory_order_relaxed
-宽松内存序，只保证原子性，没有同步和顺序制约，可用于计数器。
-
-
-## memory_order_consume
-用于 **load** operation
-
-1. No reads or writes in the current thread dependent on the value currently loaded can be reordered before this load.（后面依赖此原子变量的访存指令勿重排至此条指令之前）
-1. Writes to data-dependent variables in other threads that release the same atomic variable are visible in the current thread
-
-## memory_order_acquire
-用于 **load** operation
-
-1. No reads or writes in the current thread can be reordered before this load.（后面访存指令勿重排至此条指令之前）
-1. All writes in other threads that release the same atomic variable are visible in the current thread
-
-memory_order_consume 与 memory_order_acquire 的区别是，前者只作用于后面依赖此原子变量的指令不被重排，而后者作用于所有的指令。
-
-
-## memory_order_release
-用于 **store** operation
-
-1. No reads or writes in the current thread can be reordered after this store.（前面访存指令勿重排至此条指令之后）
-1. All writes in the current thread are visible in other threads that acquire the same atomic variable  and writes that carry a dependency into the atomic variable become visible in other threads that consume the same atomic.（当此条指令的结果对其他线程可见后，之前的所有指令都可见）
-
-## memory_order_acq_rel
-用于 **read-modify-write** operation，acquire + release 语意
-
-1. No memory reads or writes in the current thread can be reordered before or after this store
-1. All writes in other threads that release the same atomic variable are visible before the modification and the modification is visible in other threads that acquire the same atomic variable.
-
-## memory_order_seq_cst
-用于 load operation，acq_rel 语意外加所有使用 seq_cst 的指令有严格地全序关系。
-
-
-# 形式化定义
-## Sequenced-before
-同一个线程内的一种根据表达式求值顺序来的一种关系，完整的规则定义很复杂，参考 [https://en.cppreference.com/w/cpp/language/eval_order](https://en.cppreference.com/w/cpp/language/eval_order)。
-
-
-## Carries dependency
-在同一个线程内，表达式 A sequenced-before B，如果下面任何一个条件成立，那么会有 B 依赖 A：
-
-1. A 的结果是 B 的操作数
-1. A 写了一个标量对象 M，B 从 M 里读
-1. X carries dependency A, B carries dependency X
-
- 
-
-## Modification order
-## Release sequence
-## Dependency-ordered before
-## Inter-thread happens-before
-## Happens-before
-## Visible side-effects
-
-
 # Explanation
+
 ## Relaxed ordering
+
 `memory_order_relaxed` 只保证原子性，不具有任何数据同步的限制，在保证单线程执行效果一致的情况下，编译器在编译时和 CPU 在运行时可以进行各种重排，因此下面的代码在 C++ 标准中允许出现 r1 == r2 == 42 的情况（在 x86 上实际不会出现）。
 
 ```cpp
@@ -96,6 +12,7 @@ x.store(r1, std::memory_order_relaxed); // B
 r2 = x.load(std::memory_order_relaxed); // C 
 y.store(42, std::memory_order_relaxed); // D
 ```
+
 `memory_order_relaxed` 适用于==计数场景==，下面的代码在执行完后可以保证最后输出的值是 10000。
 
 ```cpp
@@ -125,7 +42,9 @@ int main()
     std::cout << "Final counter value is " << cnt << '\n';
 }
 ```
+
 ## Release-Acquire ordering
+
 如果在线程 A 中对原子变量 M 使用 `memory_order_release` 写入（store），在线程 B 中对同一个原子变量 M 使用 `memory_order_acquire` 读（load），那么在线程 A 中所有 _happened-before_ M.store 之前的内存写操作（==包括非原子变量和 relaxed 的原子变量==）在线程 B 中都变成了 _visible side-effects_。即一旦线程 B 的load 读到了 M 的新值，就保证可以看到 A 在 release 之前的写。
 
 
@@ -167,6 +86,7 @@ int main()
     t1.join(); t2.join();
 }
 ```
+
 consumer 线程通过循环等待 ptr 初始化，一旦读到了非 null 的 ptr，因为 `memory_order_release` 和`memory_order_acquire` 的同步效果，producer 里 p 和 data 的内存写入都对 consumer 中后续两个 assert 可见了。
 
 
@@ -208,10 +128,12 @@ int main()
     a.join(); b.join(); c.join();
 }
 ```
+
 上面的代码展示了 release-acquire 的传递性，thread 2 acquire 拿到 flag == 1 后，一定可以读到 data 为 42，然后 thread release 更改 flag 为 2，thread 3 acquire 拿到 flag == 2 后，也一定能读到 data 为 42。
 
 
 ## Release-Consume ordering
+
 如果在线程 A 中对原子变量 M 使用 `memory_order_release` 写入（store），在线程 B 中对同一个原子变量 M 使用 `memory_order_consume` 读（load），那么在线程 A 中所有 _happened-before_ M.store 之前的内存写操作（包括非原子变量和 relaxed 的原子变量）中与 M 有 ==_carries dependency_== 关系的变量，在线程 B 中都变成了 _visible side-effects_。即一旦线程 B 的 load 读到了 M 的新值，就保证可以看到 A 在 release 之前的写。
 
 
@@ -252,14 +174,17 @@ int main()
     t1.join(); t2.join();
 }
 ```
+
 因为 data 并不依赖 ptr，所以并不保证 p2 load 之后能看到 data == 42；因为 ptr carries dependency p，所以可以保证 p2 load 之后一定能看到 \*p == "Hello"。
 
 
 ## Sequentially-consistent ordering
+
 使用 `memory_order_seq_cst` 除了有 release/acquire 的效果，还会外加一个单独全序（_single total modification order_），也就是保证所有的线程观察到内存操作完全同样的顺序。
 
 
 下面是一个需要 sequentially-consistent ordering 的例子：
+
 ```cpp
 #include <thread>
 #include <atomic>
@@ -307,6 +232,7 @@ int main()
     assert(z.load() != 0);  // will never happen
 }
 ```
+
 要使 z == 0，只有以下情况：
 
 1. read_x_then_y ==依次==观察到 x == true; y == false
@@ -316,6 +242,7 @@ int main()
 
 
 # Relationship with volatile
+
 Within a thread of execution, accesses (reads and writes) through volatile glvalues cannot be reordered past observable side-effects (including other volatile accesses) that are sequenced-before or sequenced-after within the same thread, ==but this order is not guaranteed to be observed by another thread==, since volatile access does not establish inter-thread synchronization.
 
 
@@ -323,8 +250,10 @@ In addition, volatile accesses are ==not atomic== (concurrent read and write is 
 
 
 # Misc
+
 release-acquire 和 release-consumer 一定是成对出现才能保证上述 ordering，比如把 Release-Acquire 中的
 consumer 改成下面这样：
+
 ```cpp
 void consumer()
 {
@@ -335,6 +264,7 @@ void consumer()
     assert(data == 42); // never fires
 }
 ```
+
 虽然在 producer 中使用了 release 保证了 data = 42 不会被重排到 store 之后，即保证了在线程 A 中写 data 一定在写 ptr 之前，但是并不保证在其他线程中看到 ptr 的更改后就一定能看到 data 的更改。
 
 ---
@@ -360,5 +290,4 @@ if (ready.load(std::memory_order_acquire)) {  // 操作B
 
 1. [https://en.cppreference.com/w/cpp/atomic/memory_order](https://en.cppreference.com/w/cpp/atomic/memory_order)
 1. [https://en.wikipedia.org/wiki/Memory_ordering](https://en.wikipedia.org/wiki/Memory_ordering)
-1. [https://github.com/apache/incubator-brpc/blob/master/docs/cn/atomic_instructions.md](https://github.com/apache/incubator-brpc/blob/master/docs/cn/atomic_instructions.md)
 1. [https://blog.csdn.net/wxj1992/article/details/103649056?spm=1001.2014.3001.5501](https://blog.csdn.net/wxj1992/article/details/103649056?spm=1001.2014.3001.5501)
