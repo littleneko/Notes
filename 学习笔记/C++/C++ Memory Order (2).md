@@ -27,8 +27,6 @@ inline constexpr memory_order memory_order_seq_cst = memory_order::seq_cst;
 
 The default behavior of all atomic operations in the library provides for _sequentially consistent ordering_ (see discussion below). That default can hurt performance, but the library's atomic operations can be given an additional std::memory_order argument to specify the exact constraints, beyond atomicity, that the compiler and processor must enforce for that operation.
 
-
-
 std::memory_order 指定了包括普通的非原子内存访问在内的原子操作周围的内存访问方式。可以看到，C++ 的 memory order 提供的是一种通过原子变量限制内存序的手段，也就是说原子变量不光有我们熟知的原子变量的特性，还能限制包括非原子变量在内的各种变量的内存操作，除了依附在原子变量操作的 memory order，C++11 还引入了 std::atomic_thread_fence，也能达到类似的效果。
 
 # C++ 中的 6 种 memory order

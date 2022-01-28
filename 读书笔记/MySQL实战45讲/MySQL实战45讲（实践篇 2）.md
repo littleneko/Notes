@@ -74,20 +74,16 @@
 > **READ COMMITTED**
 > For locking reads ([`SELECT`](https://dev.mysql.com/doc/refman/5.7/en/select.html) with `FOR UPDATE` or `LOCK IN SHARE MODE`), [`UPDATE`](https://dev.mysql.com/doc/refman/5.7/en/update.html) statements, and [`DELETE`](https://dev.mysql.com/doc/refman/5.7/en/delete.html) statements, `_InnoDB_`_ locks only index records_, not the gaps before them, and thus permits the free insertion of new records next to locked records. 
 >
-> 
->
 > Only row-based binary logging is supported with the READ COMMITTED isolation level.
->
-> 
 >
 > Using > `READ COMMITTED`
 >
 > has additional effects:
 >
 > * For [`UPDATE`](https://dev.mysql.com/doc/refman/5.7/en/update.html) or [`DELETE`](https://dev.mysql.com/doc/refman/5.7/en/delete.html) statements, `InnoDB` holds locks only for rows that it updates or deletes. ==*Record locks for nonmatching rows are released after MySQL has evaluated the`WHERE` condition*==. （==可以看到 MySQL 在这里实际上是违背了两阶段加锁协议的==）
-> - **For [`UPDATE`](https://dev.mysql.com/doc/refman/5.7/en/update.html) statements, if a row is already locked, `InnoDB` performs a “==_semi-consistent_==” read, returning the latest committed version to MySQL so that MySQL can determine whether the row matches the `WHERE` condition of the [`UPDATE`](https://dev.mysql.com/doc/refman/5.7/en/update.html). If the row matches (must be updated), MySQL reads the row again and this time `InnoDB` either locks it or waits for a lock on it.**
->
-> ref: [https://dev.mysql.com/doc/refman/5.7/en/innodb-transaction-isolation-levels.html#](https://dev.mysql.com/doc/refman/5.7/en/innodb-transaction-isolation-levels.html#)
+>- **For [`UPDATE`](https://dev.mysql.com/doc/refman/5.7/en/update.html) statements, if a row is already locked, `InnoDB` performs a “==_semi-consistent_==” read, returning the latest committed version to MySQL so that MySQL can determine whether the row matches the `WHERE` condition of the [`UPDATE`](https://dev.mysql.com/doc/refman/5.7/en/update.html). If the row matches (must be updated), MySQL reads the row again and this time `InnoDB` either locks it or waits for a lock on it.**
+> 
+>ref: [https://dev.mysql.com/doc/refman/5.7/en/innodb-transaction-isolation-levels.html#](https://dev.mysql.com/doc/refman/5.7/en/innodb-transaction-isolation-levels.html#)
 
 
 
