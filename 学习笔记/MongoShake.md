@@ -1,5 +1,7 @@
 # Overview
-![image.png](https://cdn.nlark.com/yuque/0/2020/png/385742/1584239850162-c8a45a72-1bbe-4d4f-bbfc-a464e383e0d8.png#align=left&display=inline&height=368&name=image.png&originHeight=1472&originWidth=2102&size=245067&status=done&style=none&width=526)
+
+![img](https://littleneko.oss-cn-beijing.aliyuncs.com/img/1584239850162-c8a45a72-1bbe-4d4f-bbfc-a464e383e0d8.png)
+
 ## 并行复制
 MongoShake提供了并行复制的能力，复制的粒度选项（shard_key）可以为：id，collection或者auto，不同的文档或表可能进入不同的哈希队列并发执行。id表示按文档进行哈希；collection表示按表哈希；auto表示自动配置，如果有表存在唯一键，则退化为collection，否则则等价于id。
 
@@ -13,14 +15,16 @@ MongoShake定期将同步上下文进行存储，存储对象可以为第三方A
 提供黑名单和白名单机制选择性同步db和collection。
 
 ## checkpoint
-![image.png](https://cdn.nlark.com/yuque/0/2020/png/385742/1584239966168-ced42de7-2fca-4d5a-959d-e61862f47b93.png#align=left&display=inline&height=164&name=image.png&originHeight=219&originWidth=865&size=89755&status=done&style=none&width=649)
+![img](https://littleneko.oss-cn-beijing.aliyuncs.com/img/1584239966168-ced42de7-2fca-4d5a-959d-e61862f47b93.png)
+
 如上图所示，LSN=16表示已经传输了16条oplog，如果没有重传的话，下次将传输LSN=17；LSN_ACK=13表示前13条都已经收到确认，如果需要重传，最早将从LSN=14开始；LSN_CKPT=8表示已经持久化checkpoint=8。持久化的意义在于，如果此时MongoShake挂掉重启后，源数据库的oplog将从LSN_CKPT位置开始读取而不是从头LSN=1开始读。因为oplog DML的幂等性，同一数据多次传输不会产生问题。但对于DDL，重传可能会导致错误。
 
 ## 排障和限速
 MongoShake对外提供Restful API，提供实时查看进程内部各队列数据的同步情况，便于问题排查。另外，还提供限速功能，方便用户进行实时控制，减轻数据库压力。
 
 ## 架构和数据流
-![image.png](https://cdn.nlark.com/yuque/0/2020/png/385742/1584240023263-be69a110-d246-4284-a514-1b7ea589fa5f.png#align=left&display=inline&height=445&name=image.png&originHeight=593&originWidth=865&size=239014&status=done&style=none&width=649)
+
+![img](https://littleneko.oss-cn-beijing.aliyuncs.com/img/1584240023263-be69a110-d246-4284-a514-1b7ea589fa5f.png)
 
 上图展示了MongoShake内部架构和数据流细节。总体来说，整个MongoShake可以大体分为3大部分：Syncer、Worker和Replayer，其中Replayer只用于tunnel类型为direct的情况。
 
@@ -126,7 +130,8 @@ A: There are several ways to improve QPS like:
 
 ## MongoShake crashed because of OOM(Out Of Memory), how can I estimate memory usage?
 A: The below picture is the partial inner modules of MongoShake which can be used to estimate the maximum memory usage.
-![image.png](https://cdn.nlark.com/yuque/0/2020/png/385742/1584240208258-4e0a39f9-f9bb-4d9a-9510-e80b80b91a02.png#align=left&display=inline&height=789&name=image.png&originHeight=1578&originWidth=2358&size=624289&status=done&style=none&width=1179)
+
+![img](https://littleneko.oss-cn-beijing.aliyuncs.com/img/1584240208258-4e0a39f9-f9bb-4d9a-9510-e80b80b91a02.png)
 
 # Reference
 
