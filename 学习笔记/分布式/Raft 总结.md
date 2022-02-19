@@ -22,7 +22,7 @@ Raft 是一种用来管理日志复制的一致性算法，Raft 将一致性算�
 
 <img src="https://littleneko.oss-cn-beijing.aliyuncs.com/img/1590167066718-ae9982bf-1baf-4d1e-9cfe-3ef37e7c1621.jpeg" alt="img" style="zoom:80%;" />
 
-Term 是一个个的时间片，每一个任期的开始都是 Leader 选举，在成功选举之后，一个 Leader 会在任期内管理整个集群。如果选举失败，该任期就会因为没有 Leader而结束。
+Term 是一个个的时间片，每一个任期的开始都是 Leader 选举，在成功选举之后，一个 Leader 会在任期内管理整个集群。如果选举失败，该任期就会因为没有 Leader 而结束。
 
 # Leader 选举
 ## 初始状态

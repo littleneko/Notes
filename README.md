@@ -2,6 +2,8 @@
 Notes
 
 ## 目录
+1. **其他**
+    1. [OpenWrt](./其他/OpenWrt.md)
 1. **学习笔记**
     1. **C++**
         1. [C++ Lock](./学习笔记/C++/C++%20Lock.md)
@@ -38,6 +40,8 @@ Notes
         1. [openvpn](./学习笔记/Utils/openvpn.md)
     1. [ZooKeeper 临时节点](./学习笔记/ZooKeeper%20临时节点.md)
     1. [double-checked locking](./学习笔记/double-checked%20locking.md)
+    1. **rust**
+        1. [高级生命周期](./学习笔记/rust/高级生命周期.md)
     1. **分布式**
         1. [Raft 总结](./学习笔记/分布式/Raft%20总结.md)
         1. [线性一致性](./学习笔记/分布式/线性一致性.md)
@@ -48,8 +52,19 @@ Notes
         1. [MESI](./学习笔记/计算机体系结构/MESI.md)
         1. [spinlock](./学习笔记/计算机体系结构/spinlock.md)
 1. **源码阅读笔记**
+    1. **RocksDB**
+        1. [MANIFEST](./源码阅读笔记/RocksDB/MANIFEST.md)
+        1. [Untitled](./源码阅读笔记/RocksDB/Untitled.md)
     1. **braft**
-        1. [Log](./源码阅读笔记/braft/Log.md)
+        1. [0. Introduction](./源码阅读笔记/braft/0.%20Introduction.md)
+        1. [1. 节点启动和 Leader 选举](./源码阅读笔记/braft/1.%20节点启动和%20Leader%20选举.md)
+        1. [2. Next Index 寻找和 HeartBeat](./源码阅读笔记/braft/2.%20Next%20Index%20寻找和%20HeartBeat.md)
+        1. [3. Task 提交和日志复制](./源码阅读笔记/braft/3.%20Task%20提交和日志复制.md)
+        1. [4. 成员变更](./源码阅读笔记/braft/4.%20成员变更.md)
+        1. [5. 快照](./源码阅读笔记/braft/5.%20快照.md)
+        1. [6. 日志管理](./源码阅读笔记/braft/6.%20日志管理.md)
+        1. [braft 介绍](./源码阅读笔记/braft/braft%20介绍.md)
+        1. [braft 使用](./源码阅读笔记/braft/braft%20使用.md)
     1. **brpc**
         1. [Othres](./源码阅读笔记/brpc/Othres.md)
     1. **bthread**
