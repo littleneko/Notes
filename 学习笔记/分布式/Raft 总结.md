@@ -249,5 +249,5 @@ Follower 挂了，只要 Leader 还满足过半条件就一切正常。他们挂
 
 # Links
 
-1. 
+1. Ongaro, Diego, and John Ousterhout. "In search of an understandable consensus algorithm (extended version)." (2013).
 2. https://github.com/baidu/braft/blob/master/docs/cn/raft_protocol.md

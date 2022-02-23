@@ -44,6 +44,7 @@ Notes
         1. [高级生命周期](./学习笔记/rust/高级生命周期.md)
     1. **分布式**
         1. [Raft 总结](./学习笔记/分布式/Raft%20总结.md)
+        1. [[转载]Raft 的关键点](./学习笔记/分布式/[转载]Raft%20的关键点.md)
         1. [线性一致性](./学习笔记/分布式/线性一致性.md)
     1. **区块链**
         1. [拜占庭将军问题](./学习笔记/区块链/拜占庭将军问题.md)
@@ -51,10 +52,15 @@ Notes
     1. **计算机体系结构**
         1. [MESI](./学习笔记/计算机体系结构/MESI.md)
         1. [spinlock](./学习笔记/计算机体系结构/spinlock.md)
+1. **数据库**
+    1. [ISOLATION](./数据库/ISOLATION.md)
+    1. **RocksDB**
+        1. [MISC](./数据库/RocksDB/MISC.md)
+        1. [Overview](./数据库/RocksDB/Overview.md)
+    1. [关系代数](./数据库/关系代数.md)
 1. **源码阅读笔记**
     1. **RocksDB**
-        1. [MANIFEST](./源码阅读笔记/RocksDB/MANIFEST.md)
-        1. [Untitled](./源码阅读笔记/RocksDB/Untitled.md)
+        1. [RocksDB MANIFEST 文件介绍](./源码阅读笔记/RocksDB/RocksDB%20MANIFEST%20文件介绍.md)
     1. **braft**
         1. [0. Introduction](./源码阅读笔记/braft/0.%20Introduction.md)
         1. [1. 节点启动和 Leader 选举](./源码阅读笔记/braft/1.%20节点启动和%20Leader%20选举.md)
@@ -75,6 +81,9 @@ Notes
         1. [bthread (5)：生产者和消费者同步](./源码阅读笔记/bthread/bthread%20(5)：生产者和消费者同步.md)
         1. [bthread (6)：WorkStealingQueue](./源码阅读笔记/bthread/bthread%20(6)：WorkStealingQueue.md)
         1. [bthread (7)：butex](./源码阅读笔记/bthread/bthread%20(7)：butex.md)
+    1. **etcd**
+        1. [[转载]etcd raft 设计与实现(一)](./源码阅读笔记/etcd/[转载]etcd%20raft%20设计与实现(一).md)
+        1. [[转载]etcd raft 设计与实现(二)](./源码阅读笔记/etcd/[转载]etcd%20raft%20设计与实现(二).md)
 1. **读书笔记**
     1. **C++ 并发编程实战**
         1. [C++ 并发编程(1)：线程 (std::thread)](./读书笔记/C++%20并发编程实战/C++%20并发编程(1)：线程%20(std::thread).md)
