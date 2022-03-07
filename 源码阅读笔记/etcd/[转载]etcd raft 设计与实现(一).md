@@ -8,24 +8,24 @@ etcd 是一个被广泛应用于共享配置和服务发现的分布式、一致
 
 **功能支持**：
 
-1. Election（vote）：选举
-2. Pre-vote：在发起 election vote 之前，先进行 pre-vote，可以避免在网络分区的情况避免反复的 election 打断当前 leader，触发新的选举造成可用性降低的问题
-3. Config changes：配置变更，增加，删除节点等
-4. Leaner：leaner 角色，仅参与 log replication，不参与投票和提交的 Op log entry，增加节点时，复制追赶 使用 leader 角色
-5. Transfer leader：主动变更 Leader，用于关机维护，leader 负载等
-6. ReadIndex：优化 raft read 走 Op log 性能问题，每次 read Op，仅记录 commit index，然后发送所有 peers heartbeat 确认 leader 身份，如果 leader 身份确认成功，等到 applied index >= commit index，就可以返回 client read 了
-7. Lease read：通过 lease 保证 leader 的身份，从而省去了 ReadIndex 每次 heartbeat 确认 leader 身份，性能更好，但是通过时钟维护 lease 本身并不是绝对的安全
-8. snapshot：raft 主动生成 snapshot，实现 log compact 和加速启动恢复，install snapshot 实现给 follower 拷贝数据等
+1. **Election**（vote）：选举
+2. **Pre-vote**：在发起 election vote 之前，先进行 pre-vote，可以避免在网络分区的情况避免反复的 election 打断当前 leader，触发新的选举造成可用性降低的问题
+3. **Config changes**：配置变更，增加，删除节点等
+4. **Leaner**：leaner 角色，仅参与 log replication，不参与投票和提交的 Op log entry，增加节点时，复制追赶 使用 leader 角色
+5. **Transfer leader**：主动变更 Leader，用于关机维护，leader 负载等
+6. **ReadIndex**：优化 raft read 走 Op log 性能问题，每次 read Op，仅记录 commit index，然后发送所有 peers heartbeat 确认 leader 身份，如果 leader 身份确认成功，等到 applied index >= commit index，就可以返回 client read 了
+7. **Lease read**：通过 lease 保证 leader 的身份，从而省去了 ReadIndex 每次 heartbeat 确认 leader 身份，性能更好，但是通过时钟维护 lease 本身并不是绝对的安全
+8. **Snapshot**：raft 主动生成 snapshot，实现 log compact 和加速启动恢复，install snapshot 实现给 follower 拷贝数据等
 
 从功能上，etcd-raft 完备的实现了 raft 几乎所需的功能。
 
 **性能优化**：
 
-1. Batch：网络batch发送、batch持久化 Op log entries到WAL
-2. Pipeline：Leader 向 Follower 发送 Message 可以 pipeline 发送的（相对的 ping-pong 模式发送和接收）（pipeline 是grpc的一重要特性）
-3. Append Log Parallelly：Leader 发送 Op log entries message 给 Followers 和 Leader 持久化 Op log entries 是并行的
-4. Asynchronous Apply：由单独的 coroutine（协程） 负责异步的 Apply
-5. Asynchronous GC：WAL 和 snapshot 文件会分别开启单独的 coroutine 进行 GC
+1. **Batch**：网络batch发送、batch持久化 Op log entries到WAL
+2. **Pipeline**：Leader 向 Follower 发送 Message 可以 pipeline 发送的（相对的 ping-pong 模式发送和接收）（pipeline 是grpc的一重要特性）
+3. **Append Log Parallelly**：Leader 发送 Op log entries message 给 Followers 和 Leader 持久化 Op log entries 是并行的
+4. **Asynchronous Apply**：由单独的 coroutine（协程） 负责异步的 Apply
+5. **Asynchronous GC**：WAL 和 snapshot 文件会分别开启单独的 coroutine 进行 GC
 
 etcd-raft 几乎实现了 raft 大论文 [2] 和工程上该有的性能优化，实际上 ReadIndex 和 Lease Read 本身也算是性能优化。
 

@@ -65,7 +65,7 @@ int main() {
 ```
 当类型 `T` 有嵌套类型 `foobar`，`test` 的第一个定义被实例化并且空指针常量被作为参数传入。（结果类型是`yes` 。）如果不能匹配嵌套类型 `foobar` ，唯一可用函数是第二个 `test` 定义，且表达式的结果类型为 `no`。省略号（ellipsis）不仅用于接收任何类型，它的转换的优先级是最低的，因而优先匹配第一个定义，这去除了二义性。
 
-
+---
 
 **C++11 的简化:**
 
@@ -144,7 +144,7 @@ struct T {
 - ==当 condition 为 `true` 时，enable_if 有 type 类型，Substitution 成功，因此当前的函数/类模板被启用==；
 - ==当 condition 为 `false` 时，enable_if 根本就没有 type 类型，**于是 Substitution 失败 (failure) ，因此这个函数/类模板原型根本就不会被产生出来**==。
 
-
+---
 
 另外 C++ 14 中定义了 `std::enable_if_t`  的别名，更易于使用：
 ```cpp

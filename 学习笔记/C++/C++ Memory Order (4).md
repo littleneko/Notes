@@ -1,7 +1,5 @@
 std::atomic_thread_fence 
 
-
-
 ## Fence-atomic synchronization
 
 ## Atomic-fence synchronization

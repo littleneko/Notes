@@ -1,6 +1,6 @@
 # 条件变量 (std::condition_variable)
 C++ 标准库对条件变量有两套实现：`std::condition_variable` 和 `std::condition_variable_any`，这两个实现都包含在 _<condition_variable>_ 头文件的声明中。两者都需要与互斥量一起才能工作（互斥量是为了同步），前者仅能与 `std::mutex` 一起工作，而后者可以和合适的互斥量一起工作，从而加上了 \_any 的后缀。因为 `std::condition_variable_any` 更加通用，不过在性能和系统资源的使用方面会有更多的开销，所以通常会将 `std::condition_variable` 作为首选类型。
- 
+
 以下代码展示了使用条件变量唤醒线程的方式：
 ```cpp
 std::mutex mut;
@@ -43,7 +43,7 @@ C++ 标准库中有两种 future，声明在 <future> 头文件中: unique futur
 future 对象本身并不提供同步访问，当多个线程需要访问一个独立 future 对象时，必须使用互斥量或类似同步机制进行保护。不过，当多个线程对一个 `std::shared_future<>` 副本进行访问，即使同一个异步结果，也不需要同步 future。
 
 
-## 后台任务的返回值(std::async())
+## 后台任务的返回值 (std::async())
 使用 `std::async()` 启动一个异步任务，返回一个 `std::future` 对象，这个对象持有最终计算出来的结果，当需要这个值时，只需要调用这个对象的 `get()` 函数，就会阻塞线程直到 future 就绪为止，并返回计算结果。
 ```cpp
 #include <future>

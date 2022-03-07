@@ -54,10 +54,14 @@ Notes
         1. [spinlock](./学习笔记/计算机体系结构/spinlock.md)
 1. **数据库**
     1. [ISOLATION](./数据库/ISOLATION.md)
+    1. [Percolator](./数据库/Percolator.md)
     1. **RocksDB**
         1. [MISC](./数据库/RocksDB/MISC.md)
         1. [Overview](./数据库/RocksDB/Overview.md)
+    1. [[转载] Cascades Optimizer](./数据库/[转载]%20Cascades%20Optimizer.md)
     1. [关系代数](./数据库/关系代数.md)
+    1. [基于规则的优化 (RBO)](./数据库/基于规则的优化%20(RBO).md)
+    1. [执行引擎](./数据库/执行引擎.md)
 1. **源码阅读笔记**
     1. **RocksDB**
         1. [RocksDB MANIFEST 文件介绍](./源码阅读笔记/RocksDB/RocksDB%20MANIFEST%20文件介绍.md)
@@ -85,6 +89,13 @@ Notes
         1. [[转载]etcd raft 设计与实现(一)](./源码阅读笔记/etcd/[转载]etcd%20raft%20设计与实现(一).md)
         1. [[转载]etcd raft 设计与实现(二)](./源码阅读笔记/etcd/[转载]etcd%20raft%20设计与实现(二).md)
 1. **读书笔记**
+    1. **15-445:645 Database Systems (Fall 2021)**
+        1. [Lecture #03: Database Storage (Part I)](./读书笔记/15-445:645%20Database%20Systems%20(Fall%202021)/Lecture%20#03:%20Database%20Storage%20(Part%20I).md)
+        1. [Lecture #04: Database Storage (Part II)](./读书笔记/15-445:645%20Database%20Systems%20(Fall%202021)/Lecture%20#04:%20Database%20Storage%20(Part%20II).md)
+        1. [Lecture #05: Buffer Pools](./读书笔记/15-445:645%20Database%20Systems%20(Fall%202021)/Lecture%20#05:%20Buffer%20Pools.md)
+        1. [Lecture #11: Query Execution I](./读书笔记/15-445:645%20Database%20Systems%20(Fall%202021)/Lecture%20#11:%20Query%20Execution%20I.md)
+        1. [Lecture #12: Query Execution II](./读书笔记/15-445:645%20Database%20Systems%20(Fall%202021)/Lecture%20#12:%20Query%20Execution%20II.md)
+        1. [Lecture #13: Query Planning & Optimization I](./读书笔记/15-445:645%20Database%20Systems%20(Fall%202021)/Lecture%20#13:%20Query%20Planning%20&%20Optimization%20I.md)
     1. **C++ 并发编程实战**
         1. [C++ 并发编程(1)：线程 (std::thread)](./读书笔记/C++%20并发编程实战/C++%20并发编程(1)：线程%20(std::thread).md)
         1. [C++ 并发编程(2)：共享数据保护](./读书笔记/C++%20并发编程实战/C++%20并发编程(2)：共享数据保护.md)
