@@ -90,12 +90,16 @@ Notes
         1. [[转载]etcd raft 设计与实现(二)](./源码阅读笔记/etcd/[转载]etcd%20raft%20设计与实现(二).md)
 1. **读书笔记**
     1. **15-445:645 Database Systems (Fall 2021)**
+        1. [Lecture #01: Relational Model & Relational Algebra](./读书笔记/15-445:645%20Database%20Systems%20(Fall%202021)/Lecture%20#01:%20Relational%20Model%20&%20Relational%20Algebra.md)
         1. [Lecture #03: Database Storage (Part I)](./读书笔记/15-445:645%20Database%20Systems%20(Fall%202021)/Lecture%20#03:%20Database%20Storage%20(Part%20I).md)
         1. [Lecture #04: Database Storage (Part II)](./读书笔记/15-445:645%20Database%20Systems%20(Fall%202021)/Lecture%20#04:%20Database%20Storage%20(Part%20II).md)
         1. [Lecture #05: Buffer Pools](./读书笔记/15-445:645%20Database%20Systems%20(Fall%202021)/Lecture%20#05:%20Buffer%20Pools.md)
         1. [Lecture #11: Query Execution I](./读书笔记/15-445:645%20Database%20Systems%20(Fall%202021)/Lecture%20#11:%20Query%20Execution%20I.md)
         1. [Lecture #12: Query Execution II](./读书笔记/15-445:645%20Database%20Systems%20(Fall%202021)/Lecture%20#12:%20Query%20Execution%20II.md)
         1. [Lecture #13: Query Planning & Optimization I](./读书笔记/15-445:645%20Database%20Systems%20(Fall%202021)/Lecture%20#13:%20Query%20Planning%20&%20Optimization%20I.md)
+        1. [Lecture #15: Concurrency Control Theory](./读书笔记/15-445:645%20Database%20Systems%20(Fall%202021)/Lecture%20#15:%20Concurrency%20Control%20Theory.md)
+        1. [Lecture #16: Two-Phase Locking](./读书笔记/15-445:645%20Database%20Systems%20(Fall%202021)/Lecture%20#16:%20Two-Phase%20Locking.md)
+        1. [Lecture #17: Timestamp Ordering Concurrency Control](./读书笔记/15-445:645%20Database%20Systems%20(Fall%202021)/Lecture%20#17:%20Timestamp%20Ordering%20Concurrency%20Control.md)
     1. **C++ 并发编程实战**
         1. [C++ 并发编程(1)：线程 (std::thread)](./读书笔记/C++%20并发编程实战/C++%20并发编程(1)：线程%20(std::thread).md)
         1. [C++ 并发编程(2)：共享数据保护](./读书笔记/C++%20并发编程实战/C++%20并发编程(2)：共享数据保护.md)
