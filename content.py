@@ -3,6 +3,7 @@
 
 import os
 import re
+from urllib.parse import quote
 
 outputs = ["## 目录"]
 
@@ -20,7 +21,7 @@ def list_files(path=".", deep=0):
         else:
             if f.lower().endswith(".md") and deep != 0:
                 base_name = os.path.splitext(f)[0]
-                outputs.append(" " * 4 * deep + "1. [" + base_name + "](" + fpath.replace(" ", "%20") + ")")
+                outputs.append(" " * 4 * deep + "1. [" + base_name + "](" + quote(fpath) + ")")
 
 
 list_files()

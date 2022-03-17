@@ -281,5 +281,7 @@ The isolation levels defined as part of SQL-92 standard only focused on anomalie
    * Default isolation level in IBM DB2.
 2. ==**SNAPSHOT ISOLATION**==
    * Guarantees that all reads made in a transaction see a consistent snapshot of the database that existed at the time the transaction started.
-   * A transaction will commit only if its writes do not conflict with any concurrent updates made since that snapshot.
+   * ==A transaction will commit only if its writes do not conflict with any concurrent updates made since that snapshot.==
    * Susceptible to ==write skew== anomaly.
+
+<img src="https://littleneko.oss-cn-beijing.aliyuncs.com/img/image-20220313232325855.png" alt="image-20220313232325855" style="zoom:25%;" />
