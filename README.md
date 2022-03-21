@@ -53,6 +53,7 @@ Notes
         1. [MESI](./%E5%AD%A6%E4%B9%A0%E7%AC%94%E8%AE%B0/%E8%AE%A1%E7%AE%97%E6%9C%BA%E4%BD%93%E7%B3%BB%E7%BB%93%E6%9E%84/MESI.md)
         1. [spinlock](./%E5%AD%A6%E4%B9%A0%E7%AC%94%E8%AE%B0/%E8%AE%A1%E7%AE%97%E6%9C%BA%E4%BD%93%E7%B3%BB%E7%BB%93%E6%9E%84/spinlock.md)
 1. **数据库**
+    1. [Access Path Selection in a Relational Database Management System](./%E6%95%B0%E6%8D%AE%E5%BA%93/Access%20Path%20Selection%20in%20a%20Relational%20Database%20Management%20System.md)
     1. [ISOLATION](./%E6%95%B0%E6%8D%AE%E5%BA%93/ISOLATION.md)
     1. [Percolator](./%E6%95%B0%E6%8D%AE%E5%BA%93/Percolator.md)
     1. **RocksDB**
