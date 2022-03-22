@@ -209,12 +209,8 @@ The cost of sorting a relation, *C-sort(path)*, includes the cost of retrieving 
 
 There is a scan on the EMP relation in DNO order, so it is possible to use this scan and the DNO scan on the DEPT relation to do a merging scans join, without any sorting.
 
-这里就不再一一细说各种假设了
-
 <img src="https://littleneko.oss-cn-beijing.aliyuncs.com/img/image-20220322005306284.png" alt="image-20220322005306284" style="zoom:50%;" />
 
 最终，我们构建出一个完整的 search tree
 
 <img src="https://littleneko.oss-cn-beijing.aliyuncs.com/img/image-20220322005521926.png" alt="image-20220322005521926" style="zoom:50%;" />
-
-# Nested Queries (略)
