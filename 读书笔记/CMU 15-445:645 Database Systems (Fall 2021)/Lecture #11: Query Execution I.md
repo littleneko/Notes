@@ -16,7 +16,7 @@ The three execution models that we consider are:
 * Materialization Model
 * Vectorized / Batch Model
 
-## Iterator Model
+## Iterator Model (Volcano) ⭐️
 
 Each query plan operator implements a *Next()* function.
 
@@ -33,7 +33,7 @@ Output control works easily with this approach (LIMIT) because an operator can s
 
 ![image-20220306184442581](https://littleneko.oss-cn-beijing.aliyuncs.com/img/image-20220306184442581.png)
 
-## Materialization Model
+## Materialization Model ⭐️
 
 Each operator processes its input ==all at once== and then emits its output all at once.
 
@@ -50,7 +50,7 @@ Better for OLTP workloads because queries only access a small number of tuples a
 
 Not good for OLAP queries with large intermediate results.
 
-## Vectorization Model
+## Vectorization Model ⭐️
 
 Like the Iterator Model where each operator implements a Next() function, but...
 

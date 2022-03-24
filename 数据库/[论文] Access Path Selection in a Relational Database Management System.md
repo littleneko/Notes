@@ -1,6 +1,6 @@
 # Introduction
 
-这篇 Paper 是数据库优化器设计中的一篇极为重要的文章，对后面的相关系统的设计产生了很大的影响。这篇 Paper 要解决的问题就是在用户在不知道数据库具体的实现细节的情况下，数据库的优化器如何讲用户的 SQL 转化为尽可能高效的具体的查询数据的方式。
+这篇 Paper 要解决的问题就是在用户在不知道数据库具体的实现细节的情况下，数据库的优化器如何讲用户的 SQL 转化为尽可能高效的具体的查询数据的方式。
 
 In System R a user need not know how the tuples are physically stored and what access paths are available (e.g. which columns have indexes). SQL statements do not require the user to specify anything about the access path to be used for tuple retrieval. Nor does a user specify in what order joins are to be performed. The System R optimizer chooses both join order and an access path for each table in the SQL statement. Of the many possible choices, the optimizer chooses the one which minimizes “total access cost” for performing the entire statement.
 
@@ -122,8 +122,8 @@ Join 的优化两个重要的的问题就是
    >
    > ```
    > for r1 in outter:
-   >   for r2 in inner:
-   >     merge r1 x r2
+   >   	for r2 in inner:
+   >     		merge r1 x r2
    > ```
 
 2. 另外一个更加复杂的问题就是如何选择 join 的顺序了，为了减少考虑的 join 顺序，也使用了一些启发式（heuristic）的方法
