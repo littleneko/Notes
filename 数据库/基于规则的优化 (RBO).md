@@ -24,7 +24,7 @@ select b from t1, t2 where t1.c = t2.c and t1.a > 5
 
 变成逻辑查询计划之后，t1 t2 对应的 DataSource，负责将数据捞上来。上面接个 Join 算子，将两个表的结果按 `t1.c = t2.c` 连接，再按 `t1.a > 5` 做一个 Selection 过滤，最后将 b 列投影。下图是未经优化的表示：
 
-![未经优化表示图](https://littleneko.oss-cn-beijing.aliyuncs.com/img/1_5d26a18dc3.png)
+<img src="https://littleneko.oss-cn-beijing.aliyuncs.com/img/1_5d26a18dc3.png" alt="未经优化表示图" style="zoom:50%;" />
 
 # 列裁剪
 

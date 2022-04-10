@@ -269,8 +269,6 @@ void consumer()
 
 ---
 
-
-
 ==**memory fence 不等于可见性**==，即使线程2恰好在线程1在把 ready 设置为 true 后读取了 ready 也不意味着它能看到 true，因为同步 cache 是有延时的。==memory fence 保证的是可见性的**顺序**：“假如我看到了 a 的最新值，那么我一定也得看到 b 的最新值”==。
 
 ```cpp

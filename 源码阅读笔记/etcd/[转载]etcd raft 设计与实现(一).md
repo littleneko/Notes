@@ -4,7 +4,7 @@ etcd 是一个被广泛应用于共享配置和服务发现的分布式、一致
 
 首先从整体上来看看 etcd-raft 功能和性能，看看其是否符合你的期待。
 
-![img](https://littleneko.oss-cn-beijing.aliyuncs.com/img/v2-3523e034f88cc8acead654e4e4f5f1c8_1440w.jpg)
+<img src="https://littleneko.oss-cn-beijing.aliyuncs.com/img/v2-3523e034f88cc8acead654e4e4f5f1c8_1440w.jpg" alt="img" style="zoom:50%;" />
 
 **功能支持**：
 
@@ -33,7 +33,7 @@ etcd-raft 几乎实现了 raft 大论文 [2] 和工程上该有的性能优化�
 
 ## **2. 设计**
 
-![img](https://littleneko.oss-cn-beijing.aliyuncs.com/img/v2-ef297c4a45c3d20daff24e49b79b5e41_1440w.jpg)
+<img src="https://littleneko.oss-cn-beijing.aliyuncs.com/img/v2-ef297c4a45c3d20daff24e49b79b5e41_1440w.jpg" alt="img" style="zoom:50%;" />
 
 如上图，整个 etcd-server 的整体架构，其主要分为三层：
 

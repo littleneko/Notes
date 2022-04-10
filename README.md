@@ -78,7 +78,8 @@ Notes
         1. [braft 介绍](./%E6%BA%90%E7%A0%81%E9%98%85%E8%AF%BB%E7%AC%94%E8%AE%B0/braft/braft%20%E4%BB%8B%E7%BB%8D.md)
         1. [braft 使用](./%E6%BA%90%E7%A0%81%E9%98%85%E8%AF%BB%E7%AC%94%E8%AE%B0/braft/braft%20%E4%BD%BF%E7%94%A8.md)
     1. **brpc**
-        1. [Othres](./%E6%BA%90%E7%A0%81%E9%98%85%E8%AF%BB%E7%AC%94%E8%AE%B0/brpc/Othres.md)
+        1. [atomic_instructions](./%E6%BA%90%E7%A0%81%E9%98%85%E8%AF%BB%E7%AC%94%E8%AE%B0/brpc/atomic_instructions.md)
+        1. [io](./%E6%BA%90%E7%A0%81%E9%98%85%E8%AF%BB%E7%AC%94%E8%AE%B0/brpc/io.md)
     1. **bthread**
         1. [bthread (1)：线程模型](./%E6%BA%90%E7%A0%81%E9%98%85%E8%AF%BB%E7%AC%94%E8%AE%B0/bthread/bthread%20%281%29%EF%BC%9A%E7%BA%BF%E7%A8%8B%E6%A8%A1%E5%9E%8B.md)
         1. [bthread (2)：Work Stealing 以及任务的执行与切换](./%E6%BA%90%E7%A0%81%E9%98%85%E8%AF%BB%E7%AC%94%E8%AE%B0/bthread/bthread%20%282%29%EF%BC%9AWork%20Stealing%20%E4%BB%A5%E5%8F%8A%E4%BB%BB%E5%8A%A1%E7%9A%84%E6%89%A7%E8%A1%8C%E4%B8%8E%E5%88%87%E6%8D%A2.md)

@@ -6,7 +6,7 @@
 
 既然是 StateMachine，那么首先看看 raft StateMachine 的状态转换，实际上就是 raft 算法中各种角色的转换，etcd-raft StateMachine 封装在 raft struct 中，其状态转换如下图：
 
-![img](https://littleneko.oss-cn-beijing.aliyuncs.com/img/v2-d6309d4293ff5e49e85723cef8dad1dc_1440w.jpg)
+<img src="https://littleneko.oss-cn-beijing.aliyuncs.com/img/v2-d6309d4293ff5e49e85723cef8dad1dc_1440w.jpg" alt="img" style="zoom:50%;" />
 
 - raft state 转换的调用接口是：
 
@@ -410,7 +410,7 @@ raftNode 模块的 cortoutine 核心就是处理 raft StateMachine 的 Ready，�
 
 因为是 go 实现的，所以实际上是 coroutine 模型，如下图，注意因为是 coroutine，所以 coroutine 间的通信都是通过 Channel 完成的，这点注意和多线程模型区别开来，下图将给出整个 etcd server 和 raft 相关的所有 coroutine 和相关交互的 Channel 之间的关系图，这里不会详细介绍所有的交互流程和细节，感兴趣的读者可以结合代码来看。
 
-![img](https://littleneko.oss-cn-beijing.aliyuncs.com/img/v2-e7d6302ccc335078d1c57b72479f69af_1440w.jpg)
+<img src="https://littleneko.oss-cn-beijing.aliyuncs.com/img/v2-e7d6302ccc335078d1c57b72479f69af_1440w.jpg" alt="img" style="zoom: 67%;" />
 
 其中红色虚线框起来的代表一个 coroutine，下面将对各个协程的作用基本的描述
 
@@ -436,14 +436,14 @@ raftNode 模块的 cortoutine 核心就是处理 raft StateMachine 的 Ready，�
 
 为了更好的将整个 etcd-raft 流程串起来，下面将以一个 put kv 请求为例，描述各个模块是如何协作来完成 request 的处理。如下图给出了 etcd server 收到一个 put kv 请求的详细流程步骤图。
 
-![img](https://littleneko.oss-cn-beijing.aliyuncs.com/img/v2-3156b634c9e8911f0f05c73e56cd135a_1440w.jpg)
+<img src="https://littleneko.oss-cn-beijing.aliyuncs.com/img/v2-3156b634c9e8911f0f05c73e56cd135a_1440w.jpg" alt="img" style="zoom: 67%;" />
 
 1. client 通过 grpc 发送一个 Put kv request，etcd server 的 rpc server 收到这个请求，通过 node 模块的 Propose 接口提交，node 模块将这个 Put kv request 转换成 raft StateMachine 认识的 MsgProp Msg 并通过 propc Channel 传递给 node 模块的 coroutine；
 2. node 模块 coroutine 监听在 propc Channel 中，收到 MsgProp Msg 之后，通过 raft.Step(Msg) 接口将其提交给 raft StateMachine 处理；
 3. raft StateMachine 处理完这个 MsgProp Msg 会产生 1 个 Op log entry 和 2 个发送给另外两个副本的 Append entries 的 MsgApp messages，node 模块会将这两个输出打包成 Ready，然后通过 readyc Channel 传递给 raftNode 模块的 coroutine；
 4. raftNode 模块的 coroutine 通过 readyc 读取到 Ready，首先通过网络层将 2 个 append entries 的 messages 发送给两个副本(PS:这里是异步发送的)；
 5. raftNode 模块的 coroutine 自己将 Op log entry 通过持久化层的 WAL 接口同步的写入 WAL 文件中
-6. raftNode 模块的 coroutine 通过 advancec Channel 通知当前 Ready 已经处理完，请给我准备下一个 带出的 raft StateMachine 输出Ready；
+6. raftNode 模块的 coroutine 通过 advancec Channel 通知当前 Ready 已经处理完，请给我准备下一个待处理的 raft StateMachine 输出 Ready；
 7. 其他副本的返回 Append entries 的 response： MsgAppResp message，会通过 node 模块的接口经过 recevc Channel 提交给 node 模块的 coroutine；
 8. node 模块 coroutine 从 recev Channel 读取到 MsgAppResp，然后提交给 raft StateMachine 处理。node 模块 coroutine 会驱动 raft StateMachine 得到关于这个 committedEntires，也就是一旦大多数副本返回了就可以 commit 了，node 模块 new 一个新的 Ready其包含了 committedEntries，通过 readyc Channel 传递给 raftNode 模块 coroutine 处理；
 9. raftNode 模块 coroutine 从 readyc Channel 中读取 Ready结构，然后取出已经 commit 的 committedEntries 通过 applyc 传递给另外一个 etcd server coroutine 处理，其会将每个 apply 任务提交给 FIFOScheduler 调度异步处理，这个调度器可以保证 apply 任务按照顺序被执行，因为 apply 的执行是不能乱的；
@@ -458,9 +458,7 @@ OK，整个 Put kv request 的处理请求流程大致介绍完。需要注意�
 
 etcd-raft 最大设计亮点就是抽离了网络、持久化、协程等逻辑，用一个纯粹的 raft StateMachine 来实现 raft 算法逻辑，充分的解耦，有助于 raft 算法本身的正确实现和，而且更容易纯粹的去测试 raft 算法最本质的逻辑，而不需要考虑引入其他因素（各种异常），这一点在 raft StateMachine 的单元测试中就能够体现。希望通过本文能让大家从整体上快速的了解 etcd-raft 设计和实现思路，限于篇幅未能涉及，很多 etcd-raft 的实现细节未能详细描述，例如 Ticker 驱动逻辑时钟推进，Read 的详细交互流程，Pipeline 复制等，感兴趣的可以阅读相关源代码，时间仓促，难免有理解疏漏或者错误的地方，欢迎指出。
 
-**Notes**
 
-如有理解和描述上有疏漏或者错误的地方，欢迎共同交流；参考已经在参考文献中注明，但仍有可能有疏漏的地方，有任何侵权或者不明确的地方，欢迎指出，必定及时更正或者删除；文章供于学习交流，转载注明出处。
 
 **参考文献**
 

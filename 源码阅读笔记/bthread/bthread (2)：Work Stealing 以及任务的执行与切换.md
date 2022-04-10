@@ -827,7 +827,7 @@ void TaskGroup::ending_sched(TaskGroup** pg) {
    1. 当前 TaskGroup 的 \_remote_rq
    1. 其他 TaskGroup 的 \_rq （由 TaskControl 随机选取）
    1. 其他 TaskGroup 的 \_remote_rq
-8. ==**为什么唤醒后是先取当前 TaskGroup 的 \_remote_rq？**==因为只有在当前 worker 中的 bthread 新建的新 bthread 才会加到 \_rq 中，worker 进入休眠意味着当前 TaskGroup 的 \_rq 没有任务了，并且其他 TaskGroup 也都没任务可以取了；被唤醒的情况是在外部 pthread 中新建了 bthread，这个新建的 bthread 任务会被随机加到一个 TaskGroup 的 \_remote_rq 中，因此 worker 被唤醒后应该直接从 \_remote_rq 中取任务。
+8. ==**为什么唤醒后是先取当前 TaskGroup 的 \_remote_rq？**==因为只有在当前 worker 中的 bthread 新建的 bthread 才会加到 \_rq 中，worker 进入休眠意味着当前 TaskGroup 的 \_rq 没有任务了，并且其他 TaskGroup 也都没任务可以取了；被唤醒的情况是在外部 pthread 中新建了 bthread，这个新建的 bthread 任务会被随机加到一个 TaskGroup 的 \_remote_rq 中，因此 worker 被唤醒后应该直接从 \_remote_rq 中取任务。
 9. bthread worker 流程图
 
 <img src="https://littleneko.oss-cn-beijing.aliyuncs.com/img/1627287239983-c45ecf22-4b19-430b-b0d1-736a487523db.png" alt="bthread.png" style="zoom:50%;" />

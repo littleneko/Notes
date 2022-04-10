@@ -100,9 +100,9 @@ if (ready.load(std::memory_order_acquire)) {
 - lock-free 和 wait-free 必须处理更多更复杂的 race condition 和 ABA problem，完成相同目的的代码比用锁更复杂。代码越多，耗时就越长。
 - 使用 mutex 的算法变相带“后退”效果。后退 (backoff) 指出现竞争时尝试另一个途径以临时避免竞争，mutex 出现竞争时会使调用者睡眠，使拿到锁的那个线程可以很快地独占完成一系列流程，总体吞吐可能反而高了。
 
-
-
 mutex 导致低性能往往是因为临界区过大（限制了并发度），或竞争过于激烈（上下文切换开销变得突出）。lock-free/wait-free 算法的价值在于其保证了一个或所有线程始终在做有用的事，而不是绝对的高性能。但在一种情况下 lock-free 和 wait-free 算法的性能多半更高：就是算法本身可以用少量原子指令实现。实现锁也是要用原子指令的，当算法本身用一两条指令就能完成的时候，相比额外用锁肯定是更快了。
+
+
 
 
 [https://github.com/apache/incubator-brpc/blob/master/docs/cn/atomic_instructions.md](https://github.com/apache/incubator-brpc/blob/master/docs/cn/atomic_instructions.md)

@@ -8,17 +8,17 @@
 
 # 问题定义
 
-![img](https://littleneko.oss-cn-beijing.aliyuncs.com/img/v2-f1d719b8de4a750288501ec4d54a5d7f_1440w.jpg)
+<img src="https://littleneko.oss-cn-beijing.aliyuncs.com/img/v2-f1d719b8de4a750288501ec4d54a5d7f_1440w.jpg" alt="img" style="zoom:50%;" />
 
 首先需要讨论的一个问题是，什么是优化器？
 
 很多时候我们在讨论优化器的时候，其实讨论的是优化规则。一些常见的优化规则，例如谓词下推、常量折叠、子查询内联，这些想必不用赘述。对于具体规则来说，有些规则一定能带来收益，减小查询的代价，但另一些却未必，甚至会增加查询的代价。
 
-![img](https://littleneko.oss-cn-beijing.aliyuncs.com/img/v2-d7bd8620b272fd426c157dafd45390fe_1440w.jpg)
+<img src="https://littleneko.oss-cn-beijing.aliyuncs.com/img/v2-d7bd8620b272fd426c157dafd45390fe_1440w.jpg" alt="img" style="zoom: 50%;" />
 
 例如这里将谓词下推到具体的 Scan 算子上，由于能够减少 Join 时需要处理的数据量，显然是能够带来收益的。
 
-![img](https://littleneko.oss-cn-beijing.aliyuncs.com/img/v2-539f7763f5be6392439afca301832915_1440w.jpg)
+<img src="https://littleneko.oss-cn-beijing.aliyuncs.com/img/v2-539f7763f5be6392439afca301832915_1440w.jpg" alt="img" style="zoom:50%;" />
 
 但对于 Join 顺序的枚举来说则未必，这里将原本的 `(A JOIN B) JOIN C` 替换成 `(B JOIN C) JOIN A`，也许能带来收益。例如 A 有1000 条数据，B 有 100 条，C 有 10 条数据，三个表之间存在一定的 Join 谓词使得，`A JOIN B` 返回 10000 条数据，`B JOIN C` 返回 200 条数据；如果采用最朴素的 NestLoop，那么前一个执行计划需要处理 `1000 * 100 + 10000 * 10 = 200000` 次循环，而后一个执行计划则需要处理 `100 * 10 + 200 * 1000 = 200100` 次循环，因此前者会更优一点。
 
@@ -32,7 +32,7 @@
 - cost model：基于统计信息，对具体的执行计划评估代价
 - plan enumeration：对可能的执行计划进行搜索，对其代价进行评估，选择最优执行计划
 
-![img](https://littleneko.oss-cn-beijing.aliyuncs.com/img/v2-a369cbeda3b3e886ff7debdf2afe66b8_1440w.jpg)
+<img src="https://littleneko.oss-cn-beijing.aliyuncs.com/img/v2-a369cbeda3b3e886ff7debdf2afe66b8_1440w.jpg" alt="img" style="zoom:50%;" />
 
 ## 动态规划
 
@@ -44,7 +44,7 @@
 - 无后效性：即子问题的解一旦确定，就不再改变，不受在这之后、包含它的更大的问题的求解决策影响。
 - 重叠子问题：自顶向下对问题进行求解时，可能会遇到重复的子问题，对于子问题的解可以记录下来避免重复计算
 
-![img](https://littleneko.oss-cn-beijing.aliyuncs.com/img/v2-294369f498767f93e2390dcc275d11c8_1440w.jpg)
+<img src="https://littleneko.oss-cn-beijing.aliyuncs.com/img/v2-294369f498767f93e2390dcc275d11c8_1440w.jpg" alt="img" style="zoom:50%;" />
 
 具体到查询这一问题，对于初始的 Join Tree 来说，Join 算子会有多种实现，例如 NestLoop 和 HashJoin，也即 Join 可以分解为两个子问题，NestLoop 和 HashJoin。而对于 NestLoop 来说，需要求解其子节点 `SCAN A` 和 `SCAN B`，SCAN 也有多种实现，例如 SeqScan 和 IndexScan。同时，这里遇到了重叠子问题，在求解 HashJoin 的时候也需要计算 SCAN A。
 
@@ -58,7 +58,7 @@
 
 
 
-![img](https://littleneko.oss-cn-beijing.aliyuncs.com/img/v2-263b3c0d36ee7f7a439e6dc9f7c21b9b_1440w.jpg)
+<img src="https://littleneko.oss-cn-beijing.aliyuncs.com/img/v2-263b3c0d36ee7f7a439e6dc9f7c21b9b_1440w.jpg" alt="img" style="zoom:50%;" />
 
 
 
@@ -68,11 +68,11 @@
 
 
 
-![img](https://littleneko.oss-cn-beijing.aliyuncs.com/img/v2-6bdeef50781893341328ffe96a26d78d_1440w.jpg)
+<img src="https://littleneko.oss-cn-beijing.aliyuncs.com/img/v2-6bdeef50781893341328ffe96a26d78d_1440w.jpg" alt="img" style="zoom:50%;" />
 
 在搜索过程中，如果是纯粹地枚举所有可能的组合，则搜索空间会非常大。因此通常会对 Join Tree 的形状进行限制，也会在搜索过程中进行一定的剪枝。
 
-![img](https://littleneko.oss-cn-beijing.aliyuncs.com/img/v2-e4542c0825a7070b6438b016cf606f2d_1440w.jpg)
+<img src="https://littleneko.oss-cn-beijing.aliyuncs.com/img/v2-e4542c0825a7070b6438b016cf606f2d_1440w.jpg" alt="img" style="zoom:50%;" />
 
 例如这里的两种典型的 Join Tree，Left-deep 和 Bushy-Join。相比于 Bushy-Tree 的 `(2n-2)!/(n-1)!` 的复杂度，Left-Deep 只有 `n!`，搜索空间小了很多。
 
@@ -82,8 +82,7 @@
 
 为了刻画这个问题，引入了 Interesting Order，即上层对下层的输出结果的顺序感兴趣。因此自底向上枚举时，A JOIN B 不仅仅是保留代价最小的，还需要对每种 Interesting Order 的最小代价的 Join 进行保留。例如 `A JOIN B` 输出的顺序可能是 `(A.x), (A.x, B.y), (None)` 等多种可能性，就需要保留每种 Interesting Order。
 
-
-![img](https://littleneko.oss-cn-beijing.aliyuncs.com/img/v2-56921cbe9bca56774d34ce8647dea63f_1440w.jpg)
+<img src="https://littleneko.oss-cn-beijing.aliyuncs.com/img/v2-56921cbe9bca56774d34ce8647dea63f_1440w.jpg" alt="img" style="zoom:50%;" />
 
 
 
@@ -143,7 +142,7 @@ PostgreSQL 实现的 Join 算法就是经典的自底向上的动态规划，上
 
 为此，我们尝试另一种思路，自顶向下的搜索方案：Cascades。Cascades 其实是继承了 Volcano Optimizer Generator，并做了很多优化，也对算法细节做了更多工作，因此我们直接跳过 Volcano 来看 Cascades。
 
-![img](https://littleneko.oss-cn-beijing.aliyuncs.com/img/v2-294369f498767f93e2390dcc275d11c8_1440w.jpg)
+<img src="https://littleneko.oss-cn-beijing.aliyuncs.com/img/v2-294369f498767f93e2390dcc275d11c8_1440w.jpg" alt="img" style="zoom:50%;" />
 
 自顶向下个人感觉更加直观一点，对于一个 Operator Tree 来说，从根节点往下遍历，每个节点可以做多种变换：
 
@@ -152,7 +151,7 @@ PostgreSQL 实现的 Join 算法就是经典的自底向上的动态规划，上
 
 ## Memo⭐️
 
-![img](https://littleneko.oss-cn-beijing.aliyuncs.com/img/v2-1c8cb3c04d66b05cbd0e8b22f4a9a729_1440w.jpg)
+<img src="https://littleneko.oss-cn-beijing.aliyuncs.com/img/v2-1c8cb3c04d66b05cbd0e8b22f4a9a729_1440w.jpg" alt="img" style="zoom: 67%;" />
 
 自顶向下的搜索过程中，整个搜索空间会形成一个 Operator Tree 的森林，因此很重要的一个问题是，如何高效地保存搜索状态。
 
@@ -168,7 +167,7 @@ Cascades 首先将整个 Operator Tree 按节点拷贝到一个 **Memo** 的数�
 
 
 
-![img](https://littleneko.oss-cn-beijing.aliyuncs.com/img/v2-9697eb9488705ebdbc127c6b8bf603ae_1440w.jpg)
+<img src="https://littleneko.oss-cn-beijing.aliyuncs.com/img/v2-9697eb9488705ebdbc127c6b8bf603ae_1440w.jpg" alt="img" style="zoom: 67%;" />
 
 
 
@@ -184,7 +183,7 @@ Cascades 首先将整个 Operator Tree 按节点拷贝到一个 **Memo** 的数�
 
 优化规则和搜索过程是 Cascades 的核心，也是优化器的工作重心。在传统的优化器实现中，往往是面向过程的，一条一条地应用优化规则，对 Operator Tree 进行变换。这种 hardcode 的方式往往难以扩展，想增加一条规则较为困难，需要考虑规则之间的应用顺序。而 Cascades 在处理这一问题时，将搜索过程与具体的规则解耦，用面向对象的方式对优化规则进行建模，规则的编写不需要关心搜索过程。
 
-![img](https://littleneko.oss-cn-beijing.aliyuncs.com/img/v2-1e18a23c28f5bf838fb9f4d9e2764ee3_1440w.jpg)
+<img src="https://littleneko.oss-cn-beijing.aliyuncs.com/img/v2-1e18a23c28f5bf838fb9f4d9e2764ee3_1440w.jpg" alt="img" style="zoom:50%;" />
 
 这里的搜索过程分解为几种 Task：
 
@@ -196,13 +195,13 @@ Cascades 首先将整个 Operator Tree 按节点拷贝到一个 **Memo** 的数�
 
 这些 Task 会进行递归搜索，因此有两种选择，一种是直接递归调用，另一种则是用一个显式的的 Stack，对任务进行调度：
 
-![img](https://littleneko.oss-cn-beijing.aliyuncs.com/img/v2-8525b33d8bad1edf4df83cc73eea0513_1440w.jpg)
+<img src="https://littleneko.oss-cn-beijing.aliyuncs.com/img/v2-8525b33d8bad1edf4df83cc73eea0513_1440w.jpg" alt="img" style="zoom:50%;" />
 
 ## Property Enforcer
 
 前面提到 Interesting Order 的问题，在自顶向下的搜索过程中可以更加优雅地解决。这里讲 Interesting Order 的问题推广到 Property，在分布式数据库的场景下，Property 包含了数据分布的方式。例如分布式 HashJoin 要求两个表按 照 Hash 分布，如果不满足这个属性，则需要对数据进行一次重分布。
 
-![img](https://littleneko.oss-cn-beijing.aliyuncs.com/img/v2-aa35dccd5a93cfa0db73423508fa8c35_1440w.jpg)
+<img src="https://littleneko.oss-cn-beijing.aliyuncs.com/img/v2-aa35dccd5a93cfa0db73423508fa8c35_1440w.jpg" alt="img" style="zoom:67%;" />
 
 自顶向下的搜索过程可以用需求驱动的方式来计算属性，例如需要对 T1.a 进行排序的方式有多种，即可分解成多个子问题，对 HashJoin 的结果进行归并排序，或者把数据收集到一个节点之后再进行排序，都是可能的解决方案。对于不同的解决方案仍然是基于代价来选择出最优的方案，从而形成整体的最优解。
 

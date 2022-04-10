@@ -30,6 +30,8 @@ bthread 是一个 M:N 线程库，一个 bthread 被卡住不会影响其他 bth
 
 > **Tips**:
 > 官方并不认为 bthread 是协程(coroutine)，原因是 bthread 是一个 M:N 的线程库，而传统的协程定义是 N:1 线程库，也不需要 work stealing 调度和 butex 等特性。同样属于 M:N 线程库的还有 goroutine，因为我们已经习惯把 goroutine 叫做协程，实际上 bthread 是不是协程已经不重要了。
+>
+> 另外一个原因是 bthread 并没有像 goroutine 那样 hook 系统 IO，无法做到在 IO 阻塞时自动切换，只能主动切换或是 butex 拿不到锁时进行切换。
 
 ## Goals
 
@@ -48,8 +50,8 @@ bthread 是一个 M:N 线程库，一个 bthread 被卡住不会影响其他 bth
 **Q2**: brpc 提供了异步接口，所以一个常见的问题是：我应该用异步接口还是 bthread？
 **A2**: 延时不高时你应该先用简单易懂的同步接口，不行的话用异步接口，只有在需要多核并行计算时才用 bthread。
 
-
 brpc 中的异步和单线程的异步是完全不同的，异步回调会运行在与调用处不同的线程中，你会获得多核扩展性，但代价是你得意识到多线程问题。你可以在回调中阻塞，只要线程够用，对 server 整体的性能并不会有什么影响。不过异步代码还是很难写的，所以我们提供了[组合访问](https://github.com/apache/incubator-brpc/blob/master/docs/cn/combo_channel.md)来简化问题，通过组合不同的 channel，你可以声明式地执行复杂的访问，而不用太关心其中的细节。
+
 当然，延时不长，qps 不高时，我们更建议使用同步接口，这也是创建 bthread 的动机：维持同步代码也能提升交互性能。
 
 

@@ -21,7 +21,7 @@ RAFT 中将节点状态分为：
 
 RAFT 中 Follower 长时间没有接受到心跳就会转为 Candidate 状态，收到多数投票应答之后可以转为 Leader，Leader 会定期向其他节点发送心跳。当 Leader 和Candidate 接收到更高版本的消息后，转为 Follower。具体节点状态转移图如下：
 
-![img](https://littleneko.oss-cn-beijing.aliyuncs.com/img/raft_stat.png)
+<img src="https://littleneko.oss-cn-beijing.aliyuncs.com/img/raft_stat.png" alt="img" style="zoom: 50%;" />
 
 RAFT 比较优雅的解决了上面复制状态机中的几个问题，下面对选主、修复和节点变更等方面展开详细描述。
 
@@ -29,11 +29,11 @@ RAFT 比较优雅的解决了上面复制状态机中的几个问题，下面对
 
 RAFT 中将时间划分到 term，用于选举，标示某个 Leader 下的 Normal Case，每个 term 最多只有一个 Leader，某些 term 可能会选主失败而没有 Leader（未达到多数投票应答而超时）。
 
-![img](https://littleneko.oss-cn-beijing.aliyuncs.com/img/leader_term.png)
+<img src="https://littleneko.oss-cn-beijing.aliyuncs.com/img/leader_term.png" alt="img" style="zoom: 67%;" />
 
 RAFT 的选主过程中，每个 Candidate 节点==先将本地的 CurrentTerm 加 1==，然后向其他节点发送 RequestVote 请求，其他节点根据本地数据版本、长度和之前选主的结果判断应答成功与否。具体处理规则如下：
 
-1. ==如果 now – lastLeaderUpdateTimestamp < elect_timeout，忽略请求==（注：Leader Lease 未过期，见下面 "Asymmetric network partitioning" 部分）
+1. ==如果 now – lastLeaderUpdateTimestamp < elect_timeout，忽略请求==（注：Leader Lease 未过期，见下面 "Asymmetric Network Partitioning" 部分）
 
 2. 如果 req.term < currentTerm，忽略请求
 
@@ -55,22 +55,22 @@ RAFT 的选主过程中，每个 Candidate 节点==先将本地的 CurrentTerm �
 
 ==注意上面的 Log 新旧的比较，是基于 lastLogTerm 和 lastLogIndex 进行比较，而不是基于 currentTerm 和 lastLogIndex 进行比较，currentTerm 只是用于忽略老的 term 的 vote 请求，或者提升自己的 currentTerm，并不参与 Log 新旧的决策==。考虑一个非对称网络划分的节点，在一段时间内会不断的进行 vote，并增加 currentTerm，这样会导致网络恢复之后，Leader 会接收到 AppendEntriesResponse 中的 term 比 currentTerm 大，Leader 就会重置 currentTerm 并进行 StepDown，这样 Leader 就对齐自己的 term 到划分节点的 term，重新开始选主，最终会在上一次多数集合中选举出一个 term 大于等于划分节点 term 的 Leader。
 
-### Symmetric network partitioning
+### Symmetric Network Partitioning
 
 原始的 RAFT 论文中对于对称网络划分的处理是，一个节点再次上线之后，Leader 接收到高于 currentTerm 的 RequestVote 请求就进行 StepDown。这样即使这个节点已经通过 RemovePeer 删除了，依然会打断当前的 Lease，导致复制组不可用。对于这种 case 可以做些特殊的处理：Leader 不接收 RequestVote 请求，具体情况如下：
 
 - 对于属于 PeerSet 中的节点，Leader 会在重试的 AppendEntries 中因为遇到更高的 term 而 StepDown
 - 对于不属于 PeerSet 中的节点，Leader 永远忽略
 
-![img](https://littleneko.oss-cn-beijing.aliyuncs.com/img/symmetric_partition.png)
+<img src="https://littleneko.oss-cn-beijing.aliyuncs.com/img/symmetric_partition.png" alt="img" style="zoom: 67%;" />
 
 这样，属于 PeerSet 中的节点最终能够加入，不属于 PeerSet 的节点不会加入也不会破坏。如果网络划分是因为节点故障导致的，那么稳定的多数复制组不会收到更高 term 的 AppendEntries 应答，Leader 不会 StepDown，这样节点可以安静的加入集群。
 
-### Asymmetric network partitioning
+### Asymmetric Network Partitioning ⭐️
 
 原始的 RAFT 论文中对非对称的网络划分处理不好，比如 S1、S2、S3 分别位于三个 IDC，其中 S1 和 S2 之间网络不通，其他之间可以联通。==这样一旦 S1 或者是 S2 抢到了 Leader，另外一方在超时之后就会触发选主，例如 S1 为 Leader，S2 不断超时触发选主，S3 提升 term 打断当前 Lease，从而拒绝 Leader 的更新==。==这个时候可以增加一个 trick 的检查，每个 Follower 维护一个时间戳记录收到 Leader 上数据更新的时间，只有超过 ElectionTImeout 之后才允许接受 Vote 请求==。这个类似 Zookeeper 中只有 Candidate 才能发起和接受投票，就可以保证 S1 和 S3 能够一直维持稳定的 quorum 集合，S2 不能选主成功。
 
-![!img](https://littleneko.oss-cn-beijing.aliyuncs.com/img/asymmetric_partition.png)
+<img src="https://littleneko.oss-cn-beijing.aliyuncs.com/img/asymmetric_partition.png" alt="!img" style="zoom:67%;" />
 
 ### StepDown
 
@@ -106,18 +106,18 @@ Log Recovery 这里分为 current Term 修复和 prev Term 修复，Log Recovery
 
 current Term 修复主要是解决某些 Follower 节点重启加入集群，或者是新增 Follower 节点加入集群，Leader 需要向 Follower 节点传输漏掉的 Log Entry，如果Follower 需要的 Log Entry 已经在 Leader 上 Log Compaction 清除掉了，Leader 需要将上一个 Snapshot 和其后的 Log Entry 传输给 Follower 节点。Leader-Alive 模式下，只要 Leader 将某一条 Log Entry 复制到多数节点上，Log Entry 就转变为 Committed。 prev Term 修复主要是在保证 Leader 切换前后数据的一致性。通过上面 RAFT 的选主可以看出，每次选举出来的 Leader 一定包含已经 committed 的数据（抽屉原理，选举出来的 Leader 是多数中数据最新的，一定包含已经在多数节点上 commit 的数据），新的 Leader 将会覆盖其他节点上不一致的数据。虽然新选举出来的 Leader 一定包括上一个 Term 的 Leader 已经Committed 的 Log Entry，但是可能也包含上一个 Term 的 Leader 未 Committed 的 Log Entry。这部分 Log Entry 需要转变为 Committed，相对比较麻烦，需要考虑 Leader 多次切换且未完成 Log Recovery，需要保证最终提案是一致的，确定的。 RAFT 中增加了一个约束：==对于之前 Term 的未 Committed 数据，修复到多数节点，且在新的 Term 下至少有一条新的 Log Entry 被复制或修复到多数节点之后，才能认为之前未 Committed 的 Log Entry 转为 Committed。==下图就是一个 prev Term Recovery 的过程：
 
-![img](https://littleneko.oss-cn-beijing.aliyuncs.com/img/log_recovery.png)
+<img src="https://littleneko.oss-cn-beijing.aliyuncs.com/img/log_recovery.png" alt="img" style="zoom:50%;" />
 
 1. S1 是 Term2 的 Leader，将 LogEntry 部分复制到 S1 和 S2 的 2 号位置，然后 Crash。
 2. S5 被 S3、S4 和 S5 选为 Term3 的 Leader，并只写入一条 LogEntry 到本地，然后 Crash。
 3. S1 被 S1、S2 和 S3 选为 Term4 的Leader，并将 2 号位置的数据修复到 S3，达到多数；并在本地写入一条 Log Entry，然后 Crash。
 4. 这个时候 2 号位置的 Log Entry 虽然已经被复制到多数节点上，但是并不是 Committed。
-   1. S5 被 S3、S4 和 S5 选为 Term5 的 Leader，将本地 2 号位置 Term3 写入的数据复制到其他节点，覆盖 S1、S2、S3 上 Term2 写入的数据
-   2. S1 被 S1、S2、S3 选为 Term5 的 Leader，将 3 号位置 Term4 写入的数据复制到 S2、S3，使得 2 号位置 Term2 写入的数据变为 Committed
+   1. S5 被 S3、S4 和 S5 选为 Term5 的 Leader，将 2 号位置 Term3 写入的数据复制到其他节点，覆盖 S1、S2、S3 上 Term2 写入的数据
+   2. S1 被 S1、S2 和 S3 选为 Term5 的 Leader，将 3 号位置 Term4 写入的数据复制到 S2、S3，使得 2 号位置 Term2 写入的数据变为 Committed
 
 通过上面的流程可以看出，在 prev Term Recovery 的情况下，只要 Log Entry 还未被 Committed，即使被修复到多数节点上，依然可能不是 Committed，必须依赖新的 Term 下再有新的 Log Entry 被复制或修复到多数节点上之后才能被认为是 Committed。 选出 Leader 之后，Leader 运行过程中会进行副本的修复，这个时候只要多数副本数据完整就可以正常工作。Leader 为每个 Follower 维护一个 nextId，标示下一个要发送的 logIndex。Follower 接收到 AppendEntries 之后会进行一些一致性检查，检查 AppendEntries 中指定的 LastLogIndex 是否一致，如果不一致就会向 Leader 返回失败。Leader 接收到失败之后，会将 nextId 减 1，重新进行发送，直到成功。这个回溯的过程实际上就是寻找 Follower 上最后一个 CommittedId，然后 Leader 发送其后的 LogEntry。因为 Follower 持久化CommittedId 将会导致更新延迟增大，回溯的窗口也只是 Leader 切换导致的副本间不一致的 LogEntry，这部分数据量一般都很小。
 
-![img](https://littleneko.oss-cn-beijing.aliyuncs.com/img/log_replication.png)
+<img src="https://littleneko.oss-cn-beijing.aliyuncs.com/img/log_replication.png" alt="img" style="zoom:50%;" />
 
 ==Follower a 与 Leader 数据都是一致的，只是有数据缺失，可以优化为直接通知 Leader 从 logIndex=5 开始进行重传，这样只需一次回溯==。==Follower b 与 Leader有不一致性的数据，需要回溯 7 次才能找到需要进行重传的位置==。
 
@@ -131,7 +131,7 @@ current Term 修复主要是解决某些 Follower 节点重启加入集群，或
 
 Snapshot 是 Log Compaction 的常用方法，将系统的全部状态写入一个 Snapshot 中，并持久化的一个可靠存储系统中，完成 Snapshot 之后这个点之前的 Log 就可以被删除了。
 
-![img](https://littleneko.oss-cn-beijing.aliyuncs.com/img/log_compaction.png)
+<img src="https://littleneko.oss-cn-beijing.aliyuncs.com/img/log_compaction.png" alt="img" style="zoom: 80%;" />
 
 Snapshot 的时候，除了业务状态机 dump 自己的业务数据之外，还需要一些元信息：
 
@@ -167,7 +167,7 @@ Follower 收到 InstallSnapshot 请求之后的处理流程如下：
 
 分布式系统运行过程中节点总是会存在故障报修，需要支持节点的动态增删。节点增删过程不能影响当前数据的复制，并能够自动对新节点进行数据修复，如果删除节点涉及 Leader，还需要触发自动选主。直接增加节点可能会导致出现新老节点结合出现两个多数集合，造成冲突。下图是 3 个节点的集群扩展到 5 个节点的集群，直接扩展可能会造成 Server1 和 Server2 构成老的多数集合，Server3、Server4 和 Server5构成新的多数集合，两者不相交从而可能导致决议冲突。
 
-![img](https://littleneko.oss-cn-beijing.aliyuncs.com/img/membership.png)
+<img src="https://littleneko.oss-cn-beijing.aliyuncs.com/img/membership.png" alt="img" style="zoom: 67%;" />
 
 ### Joint-Consensus
 
@@ -184,7 +184,7 @@ RAFT 采用协同一致性的方式来解决节点的变更，先提交一个包
 
 下面是节点变更过程中的状态转移图：
 
-![img](https://littleneko.oss-cn-beijing.aliyuncs.com/img/member_change_stats.png)
+<img src="https://littleneko.oss-cn-beijing.aliyuncs.com/img/member_change_stats.png" alt="img" style="zoom: 67%;" />
 
 节点配置变更过程中需要满足如下规则：
 
@@ -256,13 +256,13 @@ RAFT 中有一个 Leader Completeness 属性来保证任意 term 的 Leader 都�
 
 通过上面的证明来看，RAFT Safety 的关键在于选主过程中数据新旧程度的判断，具体来讲就是 LastLog 的 Term 和 Index。在 RAFT 中抛开 Log Compaction 中的 LogEntry 删除，只有在 Follower 上数据与 Leader 不一致的时候才会进行删除，而且 RAFT 的 AppendEntries 流程也保证了只删除不一致的部分。这样 LogEntry 一旦被 Committed，就不会被覆盖；没有 Committed 的 LogEntry 处于未决状态，可能变为 Committed 可能被删除。在转变为 Committed 的过程中，不会修改 LogEntry 的 Term 或者是 Content。
 
-# RAFT完善
+# RAFT 完善 ⭐️
 
 ## 功能完善
 
 原始的 RAFT 在实际使用中还需要对一些功能进行完善，来避免一些问题。
 
-* **pre-vote**：网络划分会导致某个节点的数据与集群最新数据差距拉大，但是 term 因为不断尝试选主而变得很大。网络恢复之后，Leader 向其进行 replicate 就会导致 Leader 因为 term 较小而 stepdown。这种情况可以引入 pre-vote 来避免。==Follower 在转变为 Candidate 之前，先与集群节点通信，获得集群 Leader 是否存活的信息，如果当前集群有 Leader 存活，Follower 就不会转变为 Candidate，也不会增加 term==。
+* **pre-vote**：网络划分会导致某个节点的数据与集群最新数据差距拉大，但是 term 因为不断尝试选主而变得很大。网络恢复之后，Leader 向其进行 replicate 就会导致 Leader 因为 term 较小而 stepdown。这种情况可以引入 pre-vote 来避免，==Follower 在转变为 Candidate 之前，先与集群节点通信，获得集群 Leader 是否存活的信息，如果当前集群有 Leader 存活，Follower 就不会转变为 Candidate，也不会增加 term==。
 
 * **transfer leadership**：在实际一些应用中，需要考虑一些副本局部性放置，来降低网络的延迟和带宽占用。RAFT 在 transfer leadership 的时候，先 block 当前 leader 的写入过程，然后排空 target 节点的复制队列，使得 target 节点日志达到最新状态，然后发送 TimeoutNow 请求，触发 target 节点立即选主。这个过程不能无限制的 block 当前 leader 的写入过程，这样会影响服务，需要为 transfer leadership 设置一个超时时间，超时之后如果发现 term 没有发生变化，说明 target 节点没有追上数据并选主成功，transfer 就失败了。
 
