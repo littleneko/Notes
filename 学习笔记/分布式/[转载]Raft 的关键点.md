@@ -1,4 +1,4 @@
-# **1. Raft**
+# 1. Raft
 
 Raft 协议的发布，对分布式行业是一大福音，虽然在核心协议上基本都是师继 Paxos 祖师爷（lamport）的精髓，基于多数派的协议。但是 Raft 一致性协议的贡献在于，定义了可易于实现的一致性协议的事实标准。把一致性协议从 “阳春白雪” 变成普通学生、IT 码农都可以上手试一试玩一玩的东东，MIT 的分布式教学课程6.824 都是直接使用 Raft 来介绍一致性协议。
 
@@ -11,9 +11,9 @@ Raft 一致性协议相对易于实现主要归结为以下几个原因：
 
 本文不打算对 Basic Raft 一致性协议的具体内容进行说明，而是介绍记录一些关键点，因为绝大部份内容，原文已经说明得很详实，但凡有一定英文基础，直接看raft paper 就可以了，如意犹未尽，还可以把 raft 作者 Diego Ongaro 200 多页的博士论文刷一遍（链接在文末，可自取）。
 
-# **2. Points**
+# 2. Points
 
-## **2.1 Old Term LogEntry 处理**
+## 2.1 Old Term LogEntry 处理
 
 **旧 Term 未提交的日志的提交依赖于新一轮的日志的提交**
 
@@ -56,7 +56,7 @@ Raft 协议约定，Candidate 在使用新的Term进行选举的时候，Candida
 
 但是有可能接下来的客户端的写请求不能及时到达，那么为了保障 Leader 快速提供读服务，系统可首先发送一个 NO-OP LogEntry 来保障快速进入正常可读状态。
 
-## **2.2 Current Term、VotedFor 持久化**
+## 2.2 Current Term、VotedFor 持久化
 
 上图其实隐含了一些需要持久化的重要信息，即 Current Term、VotedFor！！！ 为什么 (b) 状态 S5 使用的 Term Number 为 3，而不是 2?
 
@@ -92,7 +92,7 @@ f.Sync()
 
 可以看到磁盘能够保证 512 Byte 的写入原子性，这个在知乎[事务性(Transactional)存储需要硬件参与吗？](https://www.zhihu.com/question/39142368) 这个问答上就能找到答案。所以最简单的方法是直接写入一个 tmpfile，写入完成之后，将 tmpfile mv 成 CurrentTermAndVotedFor 文件，基本可保障更新的原子性。其他方式比如采用 Append Entry 的方式也可以实现。
 
-## **2.3 Cluser Membership 变更**
+## 2.3 Cluser Membership 变更
 
 在 Raft 的 Paper 中，简要说明了一种一次变更多个节点的 Cluser Membership 变更方式。但是没有给出更多的在 Securey 以及 Avaliable 上的更多的说明。
 
@@ -102,7 +102,7 @@ f.Sync()
 
 原文：“Raft restrict the types of change that allowed： only one server can be added or removed from the cluster at once. More complex changes in membership are implemented as a series of single-server-change”
 
-### **2.3.1 Safty**
+### 2.3.1 Safty
 
 回到问题的第一大核心要点：**Safety**，membership 变更必须保持 raft 协议的约束：同一时间（同一个 Term）只能存在一个有效的 Leader。
 
@@ -154,19 +154,19 @@ Raft 协议 Configuration 请求和普通的用户写请求是可以并行的，
 
 single membership change 其他方面的 safty 保障是跟原始的 Basic Raft 是一样的（在各个协议处理细节上对此类请求未有任何特殊待遇），即只要一个多数派（不管是新的还是老的）将 single membership change 提交并返回给客户端成功之后，接下来无论节点怎么重启，都会保障确保新的 Leader 将会在已经知晓（应用）新的，前一轮变更成功的基础上处理接下来的请求：可以是读写请求、当然也可以是新的一轮 Configuration 请求。
 
-### **2.3.2 初始状态如何进入最小备份状态**
+### 2.3.2 初始状态如何进入最小备份状态
 
 比如如何进入 3 副本的集群状态。可以使用系统元素的 Single MemberShip 变更算法实现。
 
 刚开始节点的副本状态最简单为一个节点 1（自己同意自己非常简单），得到返回之后，再选择添加一个副本，达到 2 个副本的状态。然后再添加一个副本，变成3 副本状态，满足对系统可用性和可靠性的要求，此事该 raft 实例可对外提供服务。
 
-## **2.4 其他需要关注的事项**
+## 2.4 其他需要关注的事项
 
 - servers process incoming RPC requests without consulting their current configurations. server 处理在 AppendEntries & Voting Request 的时候不用考虑本地的 configuration 信息
 - catchup：为了保障系统的可靠性和可用性，加入 no-voting membership 状态，进行 catchup，需要加入的节点将历史 LogEntry 基本全部 Get 到之后再发送 Configuration。
 - Disrptive serves：为了防止移除的节点由于没有接收到新的 Leader 的心跳，而发起 Leader 选举而扰绕当前正在进行的集群状态。集群中节点在 Leader 心跳租约期间内收到 Leader 选举请求可以直接 Deny。(PS：当然对于一些确定性的事情，比如发现 Leader listen port reset，那么可以发起强制 Leader 选举的请求)
 
-## **3 参考文献**
+## 3 参考文献
 
 1. [Raft Paper](https://link.zhihu.com/?target=https%3A//raft.github.io/raft.pdf)
 2. [Raft 博士论文](https://link.zhihu.com/?target=https%3A//web.stanford.edu/~ouster/cgi-bin/papers/OngaroPhD.pdf)
