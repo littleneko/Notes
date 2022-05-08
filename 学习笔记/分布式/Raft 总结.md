@@ -184,7 +184,7 @@ Leader 选举的两个安全性约束：
 
 比如下图 raft 系统中新增加了server4 和 server5 这两台机器。只有 server3 率先感知到了这两台机器的添加。这个时候如果进行选举，就有可能出现两个 Leader 选举成功。因为 server3 认为有 3 台 server 给它投了票，它就是Leader，而 server1 认为只要有 2 台 server 给它投票就是 Leader 了。
 
-<img src="https://littleneko.oss-cn-beijing.aliyuncs.com/img/1590167067668-719f1aaf-9616-424c-ae98-769c1c989af1.png" alt="img" style="zoom:80%;" />
+<img src="https://littleneko.oss-cn-beijing.aliyuncs.com/img/1590167067668-719f1aaf-9616-424c-ae98-769c1c989af1.png" alt="img" style="zoom: 50%;" />
 
 产生这个问题的根本原因是，raft 系统中有一部分机器使用了旧的配置，如 server1 和 server2，有一部分使用新的配置，如 server3。解决这个问题的方法是添加一个中间配置 (Cold, Cnew)，这个中间配置的内容是旧的配置表 Cold 和新的配置 Cnew。还是拿上图中的例子来说明，这个时候server3 收到添加机器的消息后，不是直接使用新的配置 Cnew，而是使用 (Cold, Cnew) 来做决策。比如说 server3 在竞选 Leader 的时候，不仅需要得到 Cold 中的大部分投票，还要得到 Cnew 中的大部分投票才能成为 Leader。这样就保证了 server1 和 server2 在使用 Cold 配置的情况下，还是只可能产生一个 Leader。当所有 server 都获得了添加机器的消息后，再统一切换到 Cnew。
 

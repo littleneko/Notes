@@ -30,7 +30,7 @@ Raft 协议约定，Candidate 在使用新的Term进行选举的时候，Candida
 
 在以上条件下，Raft 论文列举了一个 Corner Case ，如图所示：
 
-![img](https://littleneko.oss-cn-beijing.aliyuncs.com/img/v2-28af663ddb608395a038d9ed2efa83d3_1440w.jpg)
+<img src="https://littleneko.oss-cn-beijing.aliyuncs.com/img/v2-28af663ddb608395a038d9ed2efa83d3_1440w.jpg" alt="img" style="zoom:67%;" />
 
 - (a): S1 成为 Leader，Append Term2 的 LogEntry（黄色）到 S1、S2 成功;
 - (b): S1 Crash，S5 使用 Term(3) 成功竞选为 Term(3) 的 Leader（通过获得 S3、S4、S5 的投票），并且将 Term为 3 的 LogEntry(蓝色) Append 到本地;
@@ -110,7 +110,7 @@ f.Sync()
 
 **为什么不能直接变更多个节点，直接从 Old 变为 New 有问题？for example change from 3 Node to 5 Node？**
 
-![img](https://littleneko.oss-cn-beijing.aliyuncs.com/img/v2-26c7a68e9aae047a910c2071bcff4831_1440w.jpg)
+<img src="https://littleneko.oss-cn-beijing.aliyuncs.com/img/v2-26c7a68e9aae047a910c2071bcff4831_1440w.jpg" alt="img" style="zoom:50%;" />
 
 如上图所示，在集群状态变跟过程中，在红色箭头处出现了两个不相交的多数派（Server3、Server4、Server 5 认知到新的 5 Node 集群；而 1、2 Server 的认知还是处在老的 3 Node 状态）。在网络分区情况下（比如 S1、S2 作为一个分区；S3、S4、S5 作为一个分区），2 个分区分别可以选举产生 2 个新的 Leader（属于 configuration< Cold> 的 Leader 以及 属于 new configuration < Cnew > 的 Leader ） 。
 
@@ -118,7 +118,7 @@ f.Sync()
 
 但是如果每次只允许出现一个节点变更（增加 or 减小），那么 Cold 和 CNew 总会相交。 如下图所示
 
-![img](https://littleneko.oss-cn-beijing.aliyuncs.com/img/v2-ba254d0dd03fce67a5a57c289a8fb0f5_1440w.jpg)
+<img src="https://littleneko.oss-cn-beijing.aliyuncs.com/img/v2-ba254d0dd03fce67a5a57c289a8fb0f5_1440w.jpg" alt="img" style="zoom: 50%;" />
 
 ---
 
@@ -130,7 +130,7 @@ f.Sync()
 2. 跟普通的 LogEntry 提交的不同点，configuration LogEntry 不需要 commit 才生效，只需要 append 到 Log 中即可。（PS: 原文 "The New configuration takes effect on each server as soon as it is added to the server's log"）
 3. 后一轮 MemberShip Change 的开始必须在前一轮 MemberShip Change Commit 之后进行，以避免出现多个 Leader 的问题
 
-![img](https://littleneko.oss-cn-beijing.aliyuncs.com/img/v2-d8dc03a5f16e27a6d5a5af6d54cf1eb5_1440w.jpg)
+<img src="https://littleneko.oss-cn-beijing.aliyuncs.com/img/v2-d8dc03a5f16e27a6d5a5af6d54cf1eb5_1440w.jpg" alt="img" style="zoom:67%;" />
 
 - 关注点 1
 

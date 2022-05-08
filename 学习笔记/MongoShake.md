@@ -1,6 +1,6 @@
 # Overview
 
-![img](https://littleneko.oss-cn-beijing.aliyuncs.com/img/1584239850162-c8a45a72-1bbe-4d4f-bbfc-a464e383e0d8.png)
+<img src="https://littleneko.oss-cn-beijing.aliyuncs.com/img/1584239850162-c8a45a72-1bbe-4d4f-bbfc-a464e383e0d8.png" alt="img" style="zoom: 33%;" />
 
 ## 并行复制
 MongoShake提供了并行复制的能力，复制的粒度选项（shard_key）可以为：id，collection或者auto，不同的文档或表可能进入不同的哈希队列并发执行。id表示按文档进行哈希；collection表示按表哈希；auto表示自动配置，如果有表存在唯一键，则退化为collection，否则则等价于id。
@@ -24,7 +24,7 @@ MongoShake对外提供Restful API，提供实时查看进程内部各队列数�
 
 ## 架构和数据流
 
-![img](https://littleneko.oss-cn-beijing.aliyuncs.com/img/1584240023263-be69a110-d246-4284-a514-1b7ea589fa5f.png)
+<img src="https://littleneko.oss-cn-beijing.aliyuncs.com/img/1584240023263-be69a110-d246-4284-a514-1b7ea589fa5f.png" alt="img" style="zoom: 80%;" />
 
 上图展示了MongoShake内部架构和数据流细节。总体来说，整个MongoShake可以大体分为3大部分：Syncer、Worker和Replayer，其中Replayer只用于tunnel类型为direct的情况。
 
@@ -131,7 +131,7 @@ A: There are several ways to improve QPS like:
 ## MongoShake crashed because of OOM(Out Of Memory), how can I estimate memory usage?
 A: The below picture is the partial inner modules of MongoShake which can be used to estimate the maximum memory usage.
 
-![img](https://littleneko.oss-cn-beijing.aliyuncs.com/img/1584240208258-4e0a39f9-f9bb-4d9a-9510-e80b80b91a02.png)
+<img src="https://littleneko.oss-cn-beijing.aliyuncs.com/img/1584240208258-4e0a39f9-f9bb-4d9a-9510-e80b80b91a02.png" alt="img" style="zoom: 33%;" />
 
 # Reference
 

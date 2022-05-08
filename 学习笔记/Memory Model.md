@@ -14,8 +14,9 @@ In modern [microprocessors](https://en.wikipedia.org/wiki/Microprocessor), memor
 
 On most modern [uniprocessors](https://en.wikipedia.org/wiki/Uniprocessor_system) memory operations are not executed in the order specified by the program code. In ==single threaded programs== all operations ==appear to have been executed in the order specified==, with ==all out-of-order execution hidden to the programmer== – however in multi-threaded environments (or when interfacing with other hardware via memory buses) this can lead to problems. To avoid problems, ==[memory barriers](https://en.wikipedia.org/wiki/Memory_barrier)== can be used in these cases.
 
-
 ## Compile-time memory ordering
+
+略
 
 
 ## Runtime memory ordering
