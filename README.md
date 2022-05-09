@@ -91,6 +91,8 @@ Notes
     1. **etcd**
         1. [[转载]etcd raft 设计与实现(一)](./%E6%BA%90%E7%A0%81%E9%98%85%E8%AF%BB%E7%AC%94%E8%AE%B0/etcd/%5B%E8%BD%AC%E8%BD%BD%5Detcd%20raft%20%E8%AE%BE%E8%AE%A1%E4%B8%8E%E5%AE%9E%E7%8E%B0%28%E4%B8%80%29.md)
         1. [[转载]etcd raft 设计与实现(二)](./%E6%BA%90%E7%A0%81%E9%98%85%E8%AF%BB%E7%AC%94%E8%AE%B0/etcd/%5B%E8%BD%AC%E8%BD%BD%5Detcd%20raft%20%E8%AE%BE%E8%AE%A1%E4%B8%8E%E5%AE%9E%E7%8E%B0%28%E4%BA%8C%29.md)
+    1. **leveldb**
+        1. [leveldb](./%E6%BA%90%E7%A0%81%E9%98%85%E8%AF%BB%E7%AC%94%E8%AE%B0/leveldb/leveldb.md)
 1. **读书笔记**
     1. **C++ 并发编程实战**
         1. [C++ 并发编程(1)：线程 (std::thread)](./%E8%AF%BB%E4%B9%A6%E7%AC%94%E8%AE%B0/C%2B%2B%20%E5%B9%B6%E5%8F%91%E7%BC%96%E7%A8%8B%E5%AE%9E%E6%88%98/C%2B%2B%20%E5%B9%B6%E5%8F%91%E7%BC%96%E7%A8%8B%281%29%EF%BC%9A%E7%BA%BF%E7%A8%8B%20%28std%3A%3Athread%29.md)

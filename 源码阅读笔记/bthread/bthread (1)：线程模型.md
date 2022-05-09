@@ -22,7 +22,7 @@
 ## 异步编程的复杂性
 异步编程中的流程控制对于专家也充满了陷阱，任何挂起操作，如 sleep 一会儿或等待某事完成，都意味着用户需要显式地保存状态，并在回调函数中恢复状态。异步代码往往得写成状态机的形式。当挂起较少时，这有点麻烦，但还是可把握的。问题在于一旦挂起发生在条件判断、循环、子函数中，写出这样的状态机并能被很多人理解和维护，几乎是不可能的。没有上下文会使得 RAII 无法充分发挥作用, 有时需要在 callback 之外 lock，callback 之内 unlock，实践中很容易出错。
 # bthread 定义
-bthread 是 brpc 使用的 M:N 线程库，目的是在提高程序的并发度的同时，降低编码难度，并在核数日益增多的CPU 上提供更好的 ==_scalability_== 和 ==_cache locality_==。"M:N" 是指 M 个 bthread 会映射至 N 个 pthread，一般 M 远大于 N。由于 linux 当下的 pthread 实现(NPTL)是 1:1 的，M 个 bthread 也相当于映射至 N 个 LWP。
+bthread 是 brpc 使用的 M:N 线程库，目的是在提高程序的并发度的同时，降低编码难度，并在核数日益增多的 CPU 上提供更好的 ==_scalability_== 和 ==_cache locality_==。"M:N" 是指 M 个 bthread 会映射至 N 个 pthread，一般 M 远大于 N。由于 linux 当下的 pthread 实现(NPTL)是 1:1 的，M 个 bthread 也相当于映射至 N 个 LWP。
 
 
 bthread 是一个 M:N 线程库，一个 bthread 被卡住不会影响其他 bthread。关键技术两点：==work stealing== 调度和 ==butex==，==前者让 bthread 更快地被调度到更多的核心上==，==后者让 bthread 和 pthread 可以相互等待和唤醒==。
@@ -41,9 +41,7 @@ bthread 是一个 M:N 线程库，一个 bthread 被卡住不会影响其他 bth
 - better cache locality, supporting NUMA is a plus.
 # 何时使用 bthread
 **Q1**: bthread 主要在 brpc 中使用，同时我们在使用 brpc 开发程序时也可以使用 bthread，那么在什么场景下需要使用 bthread 呢？
-**A1**: 除非你==需要在一次 RPC 过程中让一些代码并发运行==，你不应该直接调用 bthread 函数，把这些留给brpc 做更好
-
-
+**A1**: 除非你==需要在一次 RPC 过程中让一些代码并发运行==，你不应该直接调用 bthread 函数，把这些留给 brpc 做更好
 
 ---
 
@@ -63,11 +61,9 @@ brpc 中的异步和单线程的异步是完全不同的，异步回调会运行
 哪种效率更高呢？显然是前者。后者不仅要付出创建 bthread 的代价，在 RPC 过程中 bthread 还被阻塞着，不能用于其他用途。
 如果仅仅是为了并发 RPC，别用 bthread。
 
-
-
 ---
 
-不过当你需要并行计算时，问题就不同了。使用 bthread 可以简单地构建树形的并行计算，充分利用多核资源。比如检索过程中有三个环节可以并行处理，你可以建立两个 bthread 运行两个环节，在原地运行剩下的环节，最后 join 那两个 bthread。过程大致如下：
+不过当你需要==并行计算==时，问题就不同了。使用 bthread 可以简单地构建树形的并行计算，充分利用多核资源。比如检索过程中有三个环节可以并行处理，你可以建立两个 bthread 运行两个环节，在原地运行剩下的环节，最后 join 那两个 bthread。过程大致如下：
 ```cpp
 bool search() {
   ...

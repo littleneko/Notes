@@ -26,13 +26,13 @@ int bthread_start_background(bthread_t* __restrict tid,
 ```
 这里是否有 _thread local_ 的 TaskGroup 实际上对应了两种情况：
 
-1. 无 thread local 的 TaskGroup 对象：==在 bthread 外部调用 bthread_start_background() 创建一个 bthread，对应了我们写程序时在自己的业务线程 （pthread）中创建了一个 bthread==。
+1. 无 thread local 的 TaskGroup 对象：==在 bthread 外部调用 `bthread_start_background()` 创建一个 bthread，对应了我们写程序时在自己的业务线程 （pthread）中创建了一个 bthread==。
 1. 有 thread local 的 TaskGroup 对象：==在 bthread 内部创建 bthread，对应的场景是我们在 bthread 任务 `fn` 中又调用 `bthread_start_background()` 创建了一个 bthread，这种情况下获取到的 TaskGroup 对象就是当前 bthread 运行在的 TaskGroup==。
 
 
 
 > **Tips**：
-> 注意这里调用 `TaskGroup::start_background()` 时的非类型模板参数（[Non-type template parameter](https://en.cppreference.com/w/cpp/language/template_parameters)）REMOTE 传入的是 `false`，最终在 `TaskGroup::start_background()` 中会调用 `TaskGroup::ready_to_run()` 函数把任务加到 TaskGroup 的本地队列 `_rq` 中（在  `bthread::start_from_non_worker()` 中，最终传入的 REMOTE 参数是 `ture`）
+> 	这里调用 `TaskGroup::start_background()` 时的非类型模板参数（[Non-type template parameter](https://en.cppreference.com/w/cpp/language/template_parameters)）REMOTE 传入的是 `false`，最终在 `TaskGroup::start_background()` 中会调用 `TaskGroup::ready_to_run()` 函数把任务加到 TaskGroup 的本地队列 `_rq` 中（在  `bthread::start_from_non_worker()` 中，最终传入的 REMOTE 参数是 `ture`，会把任务添加到 TaskGroup 的远程队列 `_remote_rq` 中）。关于这两个队列的区别，下面会解释。
 
 ## TaskGroup::start_background()
 函数 `start_background()` 很简单，主要流程：
@@ -43,7 +43,8 @@ int bthread_start_background(bthread_t* __restrict tid,
 
 
 
-因此可以看到，`TaskGroup::start_background()` 并没有直接就执行了该任务，只是把任务加到了 TaskGroup 的任务队列中，实际上==由于有任务窃取的机制，这个任务最终不一定是由该 TaskGroup 执行的==。
+`TaskGroup::start_background()` 并没有直接就执行了该任务，只是把任务加到了 TaskGroup 的任务队列中，实际上==由于有任务窃取的机制，这个任务最终不一定是由该 TaskGroup 执行的==。
+
 ```cpp
 // file: task_group.cpp
 
@@ -91,7 +92,7 @@ int TaskGroup::start_background(bthread_t* __restrict th,
 }
 ```
 > **Tips**:
-> 注意这里的 TaskMeta 并不是 new 出来的，而是 `butil::get_resource(&slot)` 从资源池中拿的，bthread 的创建是非常频繁的，如果每次开启一个 bthread 就 new 一个 TaskMeta，bthread 执行完后就 delete，内存的申请和释放会非常频繁，使用资源池的目的是为了避免频繁地申请和释放内存。
+> 	这里的 TaskMeta 并不是 new 出来的，而是 `butil::get_resource(&slot)` 从资源池中拿的，bthread 的创建是非常频繁的，如果每次开启一个 bthread 就 new 一个 TaskMeta，bthread 执行完后就 delete，内存的申请和释放会非常频繁，使用资源池的目的是为了避免频繁地申请和释放内存。
 
 ## bthread::start_from_non_worker()
 函数 `start_from_non_worker()` 首先会拿到全局的 TaskControl （`get_or_new_task_control()`），然后由 TaskControl 随机选取一个 TaskGroup 执行任务（`c->choose_one_group()->start_background<true>()`，这里先忽略 BTHREAD_NOSIGNAL 相关的逻辑）
@@ -124,12 +125,11 @@ start_from_non_worker(bthread_t* __restrict tid,
 }
 ```
 > **Tips**:
-> 1. 注意这里调用 `TaskGroup::start_background()` 时 REMOTE 参数为 `true`，最终会调用 `TaskGroup::ready_to_run_remote()` 把任务加到 TaskGroup 的 `_remote_rq` 中。
-> 1. 注意函数 `get_or_new_task_control()` 在没有全局 TaskControl 时会创建一个，对应的情况是第一次创建 bthread 的场景。
+> 1. 这里调用 `TaskGroup::start_background()` 时 REMOTE 参数为 `true`，最终会调用 `TaskGroup::ready_to_run_remote()` 把任务加到 TaskGroup 远程队列的 `_remote_rq` 中。
+> 1. 函数 `get_or_new_task_control()` 在没有全局 TaskControl 时会创建一个，对应的情况是第一次创建 bthread 的场景。
+>
+> 所以说 `TaskGroup::start_background<REMOTE>()` 的 ==REMOTE 参数实际上表示了该 bthread 是由普通的 pthread 创建还是由 bthread 创建==。
 
-
-
-所以说 `TaskGroup::start_background<REMOTE>()` 的 ==REMOTE 参数实际上表示了该 bthread 是由普通的 pthread 创建还是由 bthread 创建==。
 # Overview
 从上面新建 bthread 的流程中，我们看到了 bthread 中 3 个重要的类，分别为：
 
@@ -265,7 +265,7 @@ private:
 
 - **_groups**：保存了 TaskControl 中所有的 TaskGroup 的指针，`bthread::start_from_non_worker()` 中随机选取的 TaskGroup 就是从这里拿的，在创建 TaskGroup（`TaskControl::create_group()`）会把新创建的 TaskGroup 加到其中。
 - **_workers**：pthread 线程标识符的数组，表示创建了多少个 pthread worker 线程，每个 pthread worker 线程应拥有一个线程私有的 TaskGroup 对象
-- **_pl**：ParkingLot 类型的数组，ParkingLot对象用于 bthread 任务的等待通知。
+- **_pl**：ParkingLot 类型的数组，ParkingLot 对象用于 bthread 任务的等待通知。
 ## TaskGroup
 ### TaskGroup 定义
 每一个 TaskGroup 对象是系统线程 pthread 的线程私有对象，它内部包含有任务队列，并控制 pthread 如何执行任务队列中的众多 bthread 任务，TaskGroup 中主要的成员有：
@@ -361,7 +361,7 @@ TaskGroup 初始化完成后，其 `_main_stack` 就是这个特殊的栈，`_cu
 
 
 > **Tips**:
-> 理解 TaskGroup 也是一个特殊的 bthread 很关键，后面 bthread 栈切换时对于 bthread 之间的切换和从 TaskGroup 主循环中执行任务是同样的逻辑
+> 理解 TaskGroup 也是一个特殊的 bthread 很关键，后面 bthread 栈切换时对于 bthread 之间的切换和从 TaskGroup 主循环中执行任务是同样的逻辑。
 
 ### TaskGroup::run_main_task()
 ```cpp
@@ -398,7 +398,7 @@ worker(pthread) 在 `TaskGroup::run_main_task()` 上开启无限循环等待任�
 - **sched_to()**：进行栈、寄存器等运行时上下文的切换，为接下来运行的任务恢复其上下文。
 - **task_runner()**：一个 bthread 被执行时，pthread 将执行 `TaskGroup::task_runner()`，在这个函数中会去执行 TaskMeta 对象的 `fn()`，即应用程序设置的 bthread 任务函数
 
-下面将详细分析这3个函数。
+下面将详细分析这 3 个函数。
 ## TaskMeta
 TaskMeta 保存了一些任务信息，下面截取了部分重要的 field，包括入口函数 `fn`、栈信息 `stack` 等。
 ```cpp
@@ -438,6 +438,7 @@ struct TaskMeta {
 # Work Stealing (TaskGroup::wait_task())
 ## TaskGroup::wait_task()
 `TaskGroup::wait_task()` 死循环等待 `_last_pl_state` 条件，然后执行工作窃取，直到成功拿到一个任务。
+
 ```cpp
 bool TaskGroup::wait_task(bthread_t* tid) {
     do {
@@ -458,6 +459,7 @@ bool TaskGroup::wait_task(bthread_t* tid) {
 
 ### TaskGroup::steal_task()
 `steal_task()` 首先从当前 TaskGroup 的 `_remote_rq` 取任务，如果没有，再调用 `TaskControl::steal_task()` 从其他 TaskGroup 窃取任务。
+
 ```cpp
     bool steal_task(bthread_t* tid) {
         if (_remote_rq.pop(tid)) {
@@ -470,7 +472,7 @@ bool TaskGroup::wait_task(bthread_t* tid) {
     }
 ```
 ### TaskControl::steal_task()
-全局工作窃取（`TaskControl::steal_task()`）就是随机选取一个 TaskGroup ，然后先从它的 `_rq` 队列中窃取任务，如果没有再从`_remote_rq` 中窃取任务。
+全局工作窃取（`TaskControl::steal_task()`）就是随机选取一个 TaskGroup ，然后先从它的 `_rq` 队列中窃取任务，如果没有再从 `_remote_rq` 中窃取任务。
 ```cpp
 bool TaskControl::steal_task(bthread_t* tid, size_t* seed, size_t offset) {
     // 1: Acquiring fence is paired with releasing fence in _add_group to
@@ -831,6 +833,10 @@ void TaskGroup::ending_sched(TaskGroup** pg) {
 9. bthread worker 流程图
 
 <img src="https://littleneko.oss-cn-beijing.aliyuncs.com/img/1627287239983-c45ecf22-4b19-430b-b0d1-736a487523db.png" alt="bthread.png" style="zoom:50%;" />
+
+10. TaskControl、TaskGroup、TaskMeta 关系图解
+
+    <img src="https://littleneko.oss-cn-beijing.aliyuncs.com/img/image-20220510011557138.png" alt="image-20220510011557138" style="zoom:50%;" />
 
 # Links
 
