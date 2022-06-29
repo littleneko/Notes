@@ -4,7 +4,9 @@
 bthread 中生产者和消费者之间的同步使用的是 `ParkingLot` 实现的，ParkingLot 实现了 `wait()` 和 `signal()` 语义，用于实现生产者和消费者之间的状态同步，其功能类似于条件变量。
 # ParkingLot 初始化
 我们先看看 ParkingLot 在 bthread 中和 TaskControl、TaskGroup 的关系。
+
 在 TaskControl 中 ParkingLot 相关成员如下：
+
 ```cpp
 // Control all task groups
 class TaskControl 
@@ -20,7 +22,7 @@ private:
 ```cpp
 class TaskGroup {
 private:
-	ParkingLot* _pl;
+		ParkingLot* _pl;
 #ifndef BTHREAD_DONT_SAVE_PARKING_STATE
     ParkingLot::State _last_pl_state;
 #endif
@@ -29,9 +31,8 @@ private:
 > **Tips**：
 > 其中宏 BTHREAD_DONT_SAVE_PARKING_STATE 在编译时参数一般是关闭，因此下面的讨论都是基于 #ifndef BTHREAD_DONT_SAVE_PARKING_STATE 为 true 的情况。
 
-
-
 `TaskGroup::_pl` 的初始化：
+
 ```cpp
 TaskGroup::TaskGroup(TaskControl* c)
 // 省略初始化参数列表
@@ -117,6 +118,7 @@ void TaskGroup::flush_nosignal_tasks() {
 
 
 `TaskGroup::ready_to_run_remote()` 的逻辑基本一样，唯一的区别是操作 _remote_rq 的时候需要先加锁。
+
 ```cpp
 void TaskGroup::ready_to_run_remote(bthread_t tid, bool nosignal) {
     _remote_rq._mutex.lock();
@@ -177,7 +179,7 @@ void TaskControl::signal_task(int num_task) {
     }
 }
 ```
-num_task 如果大于2，则重置为 2，也就是说下面逻辑中 num_task 的有效值只有 1 和 2 ，注释中提到，把num_task 不超过 2，是在性能和调度时间直接的一种平衡。
+num_task 如果大于2，则重置为 2，也就是说下面逻辑中 num_task 的有效值只有 1 和 2 ，注释中提到，把 num_task 不超过 2，是在性能和调度时间直接的一种平衡。
 
 
 > **num_task 设置为 2 的原因：**
@@ -252,7 +254,7 @@ public
 > `ParkingLot::_pending_signal` 为奇数的情况即主动 stop 的情况， `ParkingLot::stop()` 函数中，使用 `_pending_signal.fetch_or(1)` 把 `ParkingLot::_pending_signal` 置为了奇数。
 
 ## TaskGroup::_last_pl_state 状态同步
-那 `_last_pl_state` 是在什么时候变化的呢？答案是接下来的 `steal_task(tid)` 中，在当前 TaskGroup 的 _remote_rq 无任务的时候，_last_pl_state 会从 _pl 同步一次状态。
+那 `_last_pl_state` 是在什么时候变化的呢？答案是接下来的 `steal_task(tid)` 中，在当前 TaskGroup 的 \_remote_rq 无任务的时候，\_last_pl_state 会从 \_pl 同步一次状态。
 ```cpp
 class TaskGroup {
 private:
@@ -397,7 +399,8 @@ futex(&_pending_signal, (FUTEX_WAIT | FUTEX_PRIVATE_FLAG), expected_state.val, N
 
 
 
-> **什么情况下消费者会阻塞在 **`**_last_pl_state**`** 上等待被唤醒？**
+> **什么情况下消费者会阻塞在 `_last_pl_state` 上等待被唤醒？**
+>
 > 1. 系统初始化时，所有 worker（TaskGroup）都等待被唤醒
 > 1. TaskGroup 的 \_rq、\_remote_rq 和其他 TaskGroup 中都没有任务时
 

@@ -205,6 +205,16 @@ luci-app-wol
 luci-app-frpc
 luci-app-upnp
 luci-app-nlbwmon
+luci-app-samba4
 
+
+luci-app-filetransfer
+luci-app-webadmin
+luci-app-vlmcsd
+luci-app-vsftpd
+luci-app-ipsec-vpnd
+luci-app-zerotier
+luci-app-arpbind
+luci-app-flowoffload
 ```
 

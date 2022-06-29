@@ -9,9 +9,6 @@ void TaskGroup::run_main_task() {
         TaskGroup::sched_to(&dummy, tid);
         DCHECK_EQ(this, dummy);
         DCHECK_EQ(_cur_meta->stack, _main_stack);
-        if (_cur_meta->tid != _main_tid) {
-            TaskGroup::task_runner(1/*skip remained*/);
-        }
         // ... ...
     }
 }
@@ -43,23 +40,17 @@ void TaskGroup::sched_to(TaskGroup** pg, TaskMeta* next_meta) {
     // Switch to the task
     if (__builtin_expect(next_meta != cur_meta, 1)) {
         g->_cur_meta = next_meta;
-		if (cur_meta->stack != NULL) {
+				if (cur_meta->stack != NULL) {
             if (next_meta->stack != cur_meta->stack) {
-                // 从本协程切出 (暂且认为 inline 展开了)
+                // 从本协程切出 
                 jump_stack(cur_meta->stack, next_meta->stack);
                 // 此处是返回地址，即协程恢复时开始执行的位置
                 // probably went to another group, need to assign g again.
                 g = tls_task_group;
             }
-#ifndef NDEBUG
-            else {
-                // else pthread_task is switching to another pthread_task, sc
-                // can only equal when they're both _main_stack
-                CHECK(cur_meta->stack == g->_main_stack);
-            }
-#endif
         }
     // ... ...
+    }
     *pg = g;
 }
 ```
@@ -135,61 +126,61 @@ __asm (
 ```
 **汇编指令解释**：
 
-- pushq  %rbp
-- pushq  %rbx
-- pushq  %r15
-- pushq  %r14
-- pushq  %r13
-- pushq  %r12 :	相关寄存器入栈，保存现场必须的步骤（==注意这里栈还是切换前的 bthread 栈，可能是 TaskGroup 的 \_main_stack==）
+- `pushq  %rbp`
+- `pushq  %rbx`
+- `pushq  %r15`
+- `pushq  %r14`
+- `pushq  %r13`
+- `pushq  %r12` :	相关寄存器入栈，保存现场必须的步骤（==注意这里栈还是切换前的 bthread 栈，可能是 TaskGroup 的 \_main_stack==）
 
 
 
-- leaq  -0x8(%rsp), %rsp :	栈顶下移 8 字节，为 FPU 浮点运算预留
+- `leaq  -0x8(%rsp), %rsp` :	栈顶下移 8 字节，为 FPU 浮点运算预留
 
 
 
-- cmp  $0, %rcx
-- je  1f :	如果第 4 个参数为 0 则直接跳转到 1 处，也就是跳过 stmxcsr、fnstcw 这两个指令。对于我们的场景而言，没有第 4 个参数，因此条件成立，跳转到 1
-- stmxcsr  (%rsp) : 	保存当前 MXCSR 内容到 rsp 指向的位置
-- fnstcw   0x4(%rsp) : 	保存当前 FPU 状态字到 rsp+4 指向的位置
+- `cmp  $0, %rcx`
+- `je  1f` :	如果第 4 个参数为 0 则直接跳转到 1 处，也就是跳过 stmxcsr、fnstcw 这两个指令。对于我们的场景而言，没有第 4 个参数，因此条件成立，跳转到 1
+- `stmxcsr  (%rsp)` : 	保存当前 MXCSR 内容到 rsp 指向的位置
+- `fnstcw   0x4(%rsp)` : 	保存当前 FPU 状态字到 rsp+4 指向的位置
 
 
 
-- **movq  %rsp, (%rdi)** :	==把当前栈顶指针 %rsp 保存到 &from->context 指向的内存处，即 from->context 指向了当前 %rsp 指向的内存位置==
-- **movq  %rsi, %rsp** :	==从 to->context 恢复栈顶指针 %rsp，栈切换完成==
+- `movq  %rsp, (%rdi)` :	==把当前栈顶指针 %rsp 保存到 &from->context 指向的内存处，即 from->context 指向了当前 %rsp 指向的内存位置==
+- `movq  %rsi, %rsp` :	==从 to->context 恢复栈顶指针 %rsp，栈切换完成==
 
 
 
-- cmp  $0, %rcx
-- je  2f
-- ldmxcsr  (%rsp)
-- fldcw  0x4(%rsp) : 	上面第 fnstcw 的逆操作，需要注意的是这里的栈顶指针已经是新 bthread 的栈顶了
+- `cmp  $0, %rcx`
+- `je  2f`
+- `ldmxcsr  (%rsp)`
+- `fldcw  0x4(%rsp)` : 	上面第 fnstcw 的逆操作，需要注意的是这里的栈顶指针已经是新 bthread 的栈顶了
 
 
 
-- leaq  0x8(%rsp), %rsp : 	栈顶上移 8 字节，跳过 FPU 和 MXCSR
+- `leaq  0x8(%rsp), %rsp` : 	栈顶上移 8 字节，跳过 FPU 和 MXCSR
+
+  
+
+- `popq  %r12`
+- `popq  %r13`
+- `popq  %r14`
+- `popq  %r15`
+- `popq  %rbx`
+- `popq  %rbp`: 	压栈的逆操作，注意这里是把新 bthread 的相关寄存器出栈
 
 
 
-- popq  %r12
-- popq  %r13
-- popq  %r14
-- popq  %r15
-- popq  %rbx
-- popq  %rbp : 	压栈的逆操作，注意这里是把新 bthread 的相关寄存器出栈
+- `popq  %r8` : 	==对于新的 bthread，这里 pop 出来的就是 entry；对于已经执行过的 bthread，这里 pop 出来的就是 bthread 被中断时下一条指令的地址==
 
 
 
-- popq  %r8 : 	==对于新的 bthread，这里 pop 出来的就是 entry；对于已经执行过的 bthread，这里 pop 出来的就是 bthread 被中断时下一条指令的地址==
+- `movq  %rdx  %rax`
+- `movq  %rdx, %rdi` : 	%rdx 表示的是函数的第 3 个参数，也就是是否 skip remained，当前都是0。先后存入到 %rax 和 %rdi 中
 
 
 
-- movq  %rdx  %rax
-- movq  %rdx, %rdi : 	%rdx 表示的是函数的第 3 个参数，也就是是否 skip remained，当前都是0。先后存入到 %rax 和 %rdi 中
-
-
-
-- jmp  \*%r8 : 	==跳转到 %r8 的指令开始执行，即新 bthread 的入口或上次被切出去的位置==
+- `jmp  *%r8` : 	==跳转到 %r8 的指令开始执行，即新 bthread 的入口或上次被切出去的位置==
 
 
 

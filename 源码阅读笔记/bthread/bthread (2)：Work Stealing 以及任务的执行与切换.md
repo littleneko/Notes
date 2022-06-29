@@ -1,14 +1,13 @@
-上一篇文章中提到 bthread 的两个重要特性，分别是：work stealing 调度和 butex，work stealing 使得 bthread 能够更快地被调度到更多的核心上，充分利用多核。接下来我们从 bthread 的入口函数一路跟踪到任务的执行流程，了解 bthread 的任务调度逻辑。
+上一篇文章中提到 bthread 的两个重要特性，分别是：work stealing 和 butex，work stealing 使得 bthread 能够更快地被调度到更多的核心上，充分利用多核。接下来我们从 bthread 的入口函数一路跟踪到任务的执行流程，了解 bthread 的任务调度逻辑。
 # bthread 入口
 bthread 有两个入口函数： `bthread_start_background()` 和 `bthread_start_urgent()` ，后者用于 urgent 的场景，bthread 会立即执行；前者更常用，我们主要从其入手。
 
-
-`bthread_start_background()` 逻辑很简单，
+`bthread_start_background()` 逻辑很简单：
 
 - 如果当前线程 _thread local_ 的 **TaskGroup** 不为空，就使用该 TaskGroup 执行任务（`TaskGroup::start_background()`，这里说使用该 TaskGroup 执行任务实际上并不准确，因为有任务窃取，并不保证这个任务是由该 TaskGroup 执行的）；
 - 否则就以没有 worker 的方式执行任务（`bthread::start_from_non_worker()`）。
 ```cpp
-// file: bthread.cpp
+// file: bthread.h/cpp
 
 extern BAIDU_THREAD_LOCAL TaskGroup* tls_task_group;
 
@@ -26,24 +25,28 @@ int bthread_start_background(bthread_t* __restrict tid,
 ```
 这里是否有 _thread local_ 的 TaskGroup 实际上对应了两种情况：
 
-1. 无 thread local 的 TaskGroup 对象：==在 bthread 外部调用 `bthread_start_background()` 创建一个 bthread，对应了我们写程序时在自己的业务线程 （pthread）中创建了一个 bthread==。
+1. 无 thread local 的 TaskGroup 对象：==在 bthread 外部（pthread 中）调用 `bthread_start_background()` 创建一个 bthread==。
 1. 有 thread local 的 TaskGroup 对象：==在 bthread 内部创建 bthread，对应的场景是我们在 bthread 任务 `fn` 中又调用 `bthread_start_background()` 创建了一个 bthread，这种情况下获取到的 TaskGroup 对象就是当前 bthread 运行在的 TaskGroup==。
 
 
 
 > **Tips**：
-> 	这里调用 `TaskGroup::start_background()` 时的非类型模板参数（[Non-type template parameter](https://en.cppreference.com/w/cpp/language/template_parameters)）REMOTE 传入的是 `false`，最终在 `TaskGroup::start_background()` 中会调用 `TaskGroup::ready_to_run()` 函数把任务加到 TaskGroup 的本地队列 `_rq` 中（在  `bthread::start_from_non_worker()` 中，最终传入的 REMOTE 参数是 `ture`，会把任务添加到 TaskGroup 的远程队列 `_remote_rq` 中）。关于这两个队列的区别，下面会解释。
+>
+> * 这里调用 `TaskGroup::start_background()` 时的非类型模板参数（[Non-type template parameter](https://en.cppreference.com/w/cpp/language/template_parameters)）REMOTE 传入的是 `false`，最终在 `TaskGroup::start_background()` 中会调用 `TaskGroup::ready_to_run()` 函数把任务加到 TaskGroup 的本地队列 `_rq` 中。
+> * 在  `bthread::start_from_non_worker()` 中，传入的 REMOTE 参数是 `ture`，会把任务添加到 TaskGroup 的远程队列 `_remote_rq` 中。
+>
+> 关于这两个队列的区别，下面会解释。
 
 ## TaskGroup::start_background()
 函数 `start_background()` 很简单，主要流程：
 
 1. 从资源池中拿一个任务（**TaskMeta**）（`butil::get_resource()`）
 1. 初始化该 TaskMeta（赋值回调函数 `fn` 、参数 `arg` ，生成 `tid`）
-1. 把任务加到 TaskGroup 的任务队列中（ `TaskGroup::ready_to_run_remote()` 和 `TaskGroup::ready_to_run()` )
+1. 把任务加到 TaskGroup 的任务队列中（ `TaskGroup::ready_to_run_remote()` / `TaskGroup::ready_to_run()` )
 
 
 
-`TaskGroup::start_background()` 并没有直接就执行了该任务，只是把任务加到了 TaskGroup 的任务队列中，实际上==由于有任务窃取的机制，这个任务最终不一定是由该 TaskGroup 执行的==。
+`TaskGroup::start_background()` 并没有直接执行该任务，只是把任务加到了 TaskGroup 的任务队列中，实际上==由于有任务窃取的机制，这个任务最终不一定是由该 TaskGroup 执行的==。
 
 ```cpp
 // file: task_group.cpp
@@ -289,7 +292,7 @@ private:
     ParkingLot::State _last_pl_state;
 #endif
     
-	size_t _steal_seed;
+		size_t _steal_seed;
     size_t _steal_offset;
     
     ContextualStack* _main_stack;
@@ -303,7 +306,7 @@ private:
 }
 ```
 
-- **_cur_meta：** 该 TaskGroup 当前正在执行的任务，在 bthread 切换时会重新赋值。
+- **_cur_meta：** 该 TaskGroup 当前正在执行/将要执行的任务，在 bthread 切换时会重新赋值。
 - **_last_context_remained**：在 task_runner 中 执行用户函数前会先执行该函数，用于切出 bthread 重新入队等操作。
 - **_main_stack** 和 **_main_tid**：一个 pthread 会在 `TaskGroup::run_main_task()` 中执行 while 死循环，不断获取并执行 bthread 任务，一个 pthread 的执行流不是永远在 bthread 中，比如等待任务时，pthread 没有执行任何 bthread，执行流就是直接在 pthread 上。==可以将 pthread 在 “等待 bthread - 获取到bthread - 进入 bthread 执行任务函数之前” 这个过程也抽象成一个 bthread，称作一个 pthread 的 “调度bthread” 或者 “主 bthread”，它的 tid 和私有栈就是 _main_tid 和 _main_stack==。
 - **_rq**：pthread 1 在执行从自己私有的 TaskGroup中 取出的 bthread 1 时，==如果 bthread 1 执行过程中又创建了新的 bthread 2==，则 bthread 1 将 bthread 2 的 tid 压入 pthread 1 的 TaskGroup 的 _rq 队列中（`TaskGroup::ready_to_run()`）
@@ -388,7 +391,7 @@ worker(pthread) 在 `TaskGroup::run_main_task()` 上开启无限循环等待任�
 
 
 > **Tips**:
-> 注意这里 `sched_to()` 函数的第一个参数类型是 `TaskGroup**`，原因是这个 bthread 可能被 steal 到其他的 worker 上了，等到执行完返回的时候，TaskGroup 已经不是当前对象了，因此需要重置 TaskGroup 指针。
+> 这里 `sched_to()` 函数的第一个参数类型是 `TaskGroup**`，原因是这个 bthread 在执行的过程中可能被切出去（重新放回到等待队列中），然后可能被 steal 到其他的 worker 上执行，等到执行完返回的时候，TaskGroup 已经不是当时传进去的 TaskGroup 了，因此需要重置 TaskGroup 指针。
 
 
 
@@ -503,13 +506,13 @@ bool TaskControl::steal_task(bthread_t* tid, size_t* seed, size_t offset) {
     return stolen;
 }
 ```
-看到这里，大家可能很疑惑，TaskGroup 的主函数 `run_main_task()` 取任务的顺序是：
+TaskGroup 的主函数 `run_main_task()` 取任务的顺序是：
 
-1. 当前 `TaskGroup` 的 `_remote_rq` 
-1. 其他 `TaskGroup` 的 `_rq` 
-1. 其他 `TaskGroup` 的 `_remote_rq`
+1. 当前 `TaskGroup` 的 **RemoteTaskQueue **( `_remote_rq` )
+1. 其他 `TaskGroup` 的 **WorkStealingQueue **( `_rq` )
+1. 其他 `TaskGroup` 的 **RemoteTaskQueue** ( `_remote_rq`)
 
-那当前 TaskGroup 的 `_rq` 是什么时候被消费的呢？答案就是 `TaskGroup::ending_sched()` 中。
+那当前 TaskGroup 的 WorkStealingQueue ( `_rq` ) 是什么时候被消费的呢？答案就是 `TaskGroup::ending_sched()` 中。
 # 栈切换 (TaskGroup::sched_to())
 首先根据 `next_tid` 找到对应的 TaskMeta (`next_meta`)，==如果 `next_meta` 的 stack 是 NULL（即该任务是一个还没有被执行过的新任务，因此也还没有分配栈，对于执行过程中被切换出去的任务，stack 肯定不是 NULL 了）， 就使用 `get_stack()` 分配一个新的栈内存空间给这个 TaskMeta==；然后调用一个重载的 `sched_to()` ，重载的 `sched_to()` 中会调用 `jump_stack()` 实现栈切换。
 
@@ -602,6 +605,7 @@ void TaskGroup::sched_to(TaskGroup** pg, TaskMeta* next_meta) {
 }
 ```
 `tls_bls` 表示的是 TaskMeta（bthread）内的局部存储，需要先做还原，并且赋值成下一个 TaskMeta 的局部存储。
+
 ```cpp
 cur_meta->local_storage = tls_bls;
 tls_bls = next_meta->local_storage;
@@ -615,6 +619,7 @@ thread_local LocalStorage tls_bls = BTHREAD_LOCAL_STORAGE_INITIALIZER;
 ```
 ## jump_stack()
 `jump_stack()` 是汇编实现的栈跳转：
+
 ```cpp
 inline void jump_stack(ContextualStack* from, ContextualStack* to) {
     bthread_jump_fcontext(&from->context, to->context, 0/*not skip remained*/);
@@ -628,7 +633,7 @@ inline void jump_stack(ContextualStack* from, ContextualStack* to) {
 > 注意在 `jump_stack()` 返回后，下一步是 `g = tls_task_group` 把 TaskGroup 指针重新赋值为当前线程的 TaskGroup 指针，注释说明是 "probably went to another group, need to assign g again."。在 `jump_stack()` 中保存的返回点是其下一行代码的位置，但是 bthread 在执行过程中可能主动让出 CPU（yield/sleep/bmutex），然后被重新加到队列中，等到再次被调度的时候可能是在其他的 worker 中被执行，最终返回后，TaskGroup 指针需要更新。
 
 # 执行任务 (TaskGroup::task_runner())
-`TaskGroup::task_runner()` 的主要逻辑如下（省略了一些无关的代码），一直循环执行下面的步骤，直到 `g->_cur_meta->tid != g->_main_tid`：
+`TaskGroup::task_runner()` 的主要逻辑如下（省略了一些无关的代码），一直循环执行下面的步骤，直到所有任务都执行完了（队列中没有任务时会把 next_tid 置为 main_tid，因此用 `g->_cur_meta->tid == g->_main_tid` 来作为结束条件）：
 
 1. 再次拿一次当前 pthread 的 TaskGroup（`tls_task_group`）
 1. 拿到当前 TaskGroup 的 TaskMeta
@@ -755,10 +760,10 @@ void TaskGroup::_release_last_context(void* arg) {
 ## TaskGroup::ending_sched()
 在 `TaskGroup::ending_sched()` 中也会选取任务并执行，其顺序是：
 
-1. 当前 TaskGroup 的 \_rq
-1. 当前 TaskGroup 的 \_remote_rq （从这里开始就是上面提到的 `TaskGroup::steal_task()` 的逻辑）
-1. 其他 TaskGroup 的 \_rq
-1. 其他 TaskGroup 的 \_remote_rq
+1. 当前 TaskGroup 的 **WorkStealingQueue** (\_rq)
+1. 当前 TaskGroup 的 **RemoteTaskQueue** (\_remote_rq) （从这里开始就是上面提到的 `TaskGroup::steal_task()` 的逻辑）
+1. 其他 TaskGroup 的 **WorkStealingQueue** (\_rq)
+1. 其他 TaskGroup 的 **RemoteTaskQueue** (\_remote_rq)
 
 
 
@@ -818,18 +823,18 @@ void TaskGroup::ending_sched(TaskGroup** pg) {
 4. 如果一个 TaskMeta 是第一次执行，那么它的 stack 是 NULL，需要分配一个 stack（`get_stack()`）
    1. ending_sched() 中继续执行下一个 TaskMeta 的时候，有复用 _main_stack 的逻辑
 5. ==**TaskGroup 中两个队列区别**==：
-   1. _rq（WorkStealingQueue）：==bthread 创建的任务会加到 bthread 所属的 worker 的这个 _rq 队列中，优先级较高（任务执行时优先被消费）==。因此该队列的 push 和 pop 操作永远只会有一个线程在调用，不会有并发，但是 steal 是其他 worker 调用的，会和 push 以及 pop 之间有并发。
-   1. _remote_rq（RemoteTaskQueue）：==pthread 中创建的任务（外部创建的）会随机加到一个 TaskGroup 的 _remote_rq 中，优先级较低（每个 worker 是先执行完 _rq 再执行 _remote_rq）==
+   1. _rq（**WorkStealingQueue**）：==bthread 创建的任务会加到 bthread 所在的 worker 的 WorkStealingQueue 队列中，优先级较高（任务执行时优先被消费）==。因为该队列只有当前 bthread 才能 push 和 pop，所以这两个操作永远只会有一个线程在调用，不会有并发；但是 steal 是其他 worker 调用的，会和 push 以及 pop 之间有并发。
+   1. _remote_rq（**RemoteTaskQueue**）：==pthread 中创建的任务（外部创建的）会随机加到一个 TaskGroup 的 RemoteTaskQueue 中，优先级较低（每个 worker 是先执行完 WorkStealingQueue 再执行 RemoteTaskQueue）==
 6. ==**唤醒后任务窃取的顺序**==（没有就找下一个，直到找到一个就完成窃取，不是把所有的队列都取完）：
-   1. 当前 TaskGroup 的 _remote_rq
-   1. 其他 TaskGroup  的 _rq （由 TaskControl 随机选取）
-   1. 其他 TaskGroup 的 _remote_rq
+   1. 当前 TaskGroup 的 **RemoteTaskQueue**
+   1. 其他 TaskGroup  的 **WorkStealingQueue** （由 TaskControl 随机选取）
+   1. 其他 TaskGroup 的 **RemoteTaskQueue**
 7. ==**执行完窃取的任务后继续执行任务的顺序**==（一直从这些队列取任务执行，==直到所有队列都没有任务后就 wait 休眠==**）**：
-   1. 当前 TaskGroup 的 \_rq
-   1. 当前 TaskGroup 的 \_remote_rq
-   1. 其他 TaskGroup 的 \_rq （由 TaskControl 随机选取）
-   1. 其他 TaskGroup 的 \_remote_rq
-8. ==**为什么唤醒后是先取当前 TaskGroup 的 \_remote_rq？**==因为只有在当前 worker 中的 bthread 新建的 bthread 才会加到 \_rq 中，worker 进入休眠意味着当前 TaskGroup 的 \_rq 没有任务了，并且其他 TaskGroup 也都没任务可以取了；被唤醒的情况是在外部 pthread 中新建了 bthread，这个新建的 bthread 任务会被随机加到一个 TaskGroup 的 \_remote_rq 中，因此 worker 被唤醒后应该直接从 \_remote_rq 中取任务。
+   1. 当前 TaskGroup 的 **WorkStealingQueue**
+   1. 当前 TaskGroup 的 **RemoteTaskQueue**
+   1. 其他 TaskGroup 的 **WorkStealingQueue** （由 TaskControl 随机选取）
+   1. 其他 TaskGroup 的 **RemoteTaskQueue**
+8. ==**为什么唤醒后是先取当前 TaskGroup 的 RemoteTaskQueue？**==因为只有在当前 worker 中的 bthread 新建的 bthread 才会加到 WorkStealingQueue 中，worker 进入休眠意味着当前 TaskGroup 的 WorkStealingQueue 没有任务了，并且其他 TaskGroup 也都没任务可以取了；被唤醒的情况是在外部 pthread 中新建了 bthread，这个新建的 bthread 任务会被随机加到一个 TaskGroup 的 RemoteTaskQueue 中，因此 worker 被唤醒后应该直接从 RemoteTaskQueue 中取任务。
 9. bthread worker 流程图
 
 <img src="https://littleneko.oss-cn-beijing.aliyuncs.com/img/1627287239983-c45ecf22-4b19-430b-b0d1-736a487523db.png" alt="bthread.png" style="zoom:50%;" />

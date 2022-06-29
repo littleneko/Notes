@@ -54,9 +54,9 @@ void TaskGroup::ending_sched(TaskGroup** pg) {
     sched_to(pg, next_meta);
 ```
 
-
 除此之外，在 `TaskGroup::init()` 中，也会调用 `get_stack()` ：
 （调用关系：`TaskControl::worker_thread()` -> `TaskControl::create_group()` -> `TaskGroup::init()` ）
+
 ```cpp
 // file: task_group.cpp
 
@@ -161,11 +161,9 @@ template <typename StackClass> struct StackFactory {
 它包含两个成员函数，一是获取栈（`get_statck()`），另外一个是归还栈（`return_stack()`），所谓的获取栈就是创建 `ContextualStack` （子类 `Wrapper`）对象，然后做了初始化，归还栈则是获取栈的逆操作。
 
 
-另外 `StackFactory` 模板中有一内部类 `Wrapper`，它是 `ContextualStack` 的子类，`StackFactory`成员函数 `get_stack()` 和 `return_stack()` 操作的其实就是 `Wrapper` 类型。
-
+另外 `StackFactory` 模板中有一内部类 `Wrapper`，它是 `ContextualStack` 的子类，`StackFactory` 成员函数 `get_stack()` 和 `return_stack()` 操作的其实就是 `Wrapper` 类型。
 
 `Wrapper` 的构造函数接收一个参数 entry，entry 的类型是一个函数指针。`void(*entry)(intptr_t)` 表示的是参数类型为 intptr_t，返回值为 void 的函数指针。intptr_t 是和一个机器相关的整数类型，在 64 位机器上对应的是 long，在 32 位机器上对应的是 int。
-
 
 其实 entry 只有两个值，一种是 `NULL`，另外一个就是 `TaskGroup::task_runner()`：
 `void TaskGroup::task_runner(intptr_t skip_remained)`
@@ -173,11 +171,10 @@ template <typename StackClass> struct StackFactory {
 
 构造函数内会调用 `allocate_stack_storage()` 分配栈空间，接着是对 storage、context、stacktype 的初始化（这三个是父类 ContextualStack 的成员）。其中 context 的初始化会调用 `bthread_make_fcontext()` 函数。
 
-
 `Wrapper` 析构的时候会调用 `deallocate_stack_storage()` 释放占空间，并重置三个成员变量
 
 
-> **关于 **`**butil::get_object()**`** **
+> **关于** `butil::get_object()`
 > butil 中实现了一个对象池，这里的 Wrapper 对象可能是 new 的，也可能是从对象池中拿到的归还的（ `butil::return_object()` ）的对象，这里用到的是 get_object 一个参数的重载函数，拿到对象后会使用参数 entry 初始化 Wrapper 对象。
 
 ## StackFactory 特化模板
@@ -201,7 +198,7 @@ template <> struct StackFactory<MainStackClass> {
     }
 };
 ```
-特化模板比较简洁，只是简单地 new 了一个 ContextualStack 对象做了一些初始化操作并返回。
+特化模板比较简洁，只是简单地 new 了一个 ContextualStack 对象做了一些初始化操作并返回，可以看到栈空间信息 storage 和 context 都是空的。
 # 栈信息保存（ContextualStack）
 ```cpp
 // file: contex.h
@@ -239,10 +236,10 @@ StackStorage 中才是具体表示栈信息的结构
 
 struct StackStorage {
      int stacksize; // stack 有效大小
-     int guardsize; // guardpage 的大小，使用mprotect为保护地址空间，用于检测stack_overflow
+     int guardsize; // guardpage 的大小，使用 mprotect 为保护地址空间，用于检测 stack_overflow
     // Assume stack grows upwards.
     // http://www.boost.org/doc/libs/1_55_0/libs/context/doc/html/context/stack.html
-    void* bottom;	// 栈底指正（高地址端）
+    void* bottom;	// 栈底指针 (高地址端)
     unsigned valgrind_stack_id;
 
     // Clears all members.
@@ -400,7 +397,7 @@ int allocate_stack_storage(StackStorage* s, int stacksize_in, int guardsize_in) 
 
 
 
-我们假设传入的 stacksize_in 和 guardsize_int 都是也 pagesize 对齐的（实际上正常情况确实是这样），栈大小 memsize =  stacksize_in + guardsize_int，那么唯一需要处理的问题就是 mmap 分配的 mem 地址不是和 pagesize 对齐的情况了，下图表示了最终分配的内存情况（guardsize = 1 * pagesize）
+我们假设传入的 stacksize_in 和 guardsize_int 都是 pagesize 对齐的（实际上正常情况确实是这样），栈大小 memsize =  stacksize_in + guardsize_int，那么唯一需要处理的问题就是 mmap 分配的 mem 地址不是和 pagesize 对齐的情况了，下图表示了最终分配的内存情况（guardsize = 1 * pagesize）
 
 <img src="https://littleneko.oss-cn-beijing.aliyuncs.com/img/1627665297930-02f80f10-bf5e-4221-9f1c-1dd39c97103b.png" alt="bthread_allocate_stack_storage.png" style="zoom:50%;" />
 
@@ -443,14 +440,14 @@ __asm (
 
 **每一条汇编指令解释**：
 
-1. movq	%rdi, %rax：把第 1 个参数（storage.bottom）加载到 %rax 寄存器中
-1. andq     $-16, %rax：把 %rax 的值按 16 字节向下对齐（storage.bottom 是栈的最高位，即栈底）
-1. leaq  	-0x48(%rax), %rax：把 %rax 的值 减 72
-1. movq  	%rdx, 0x38(%rax)：把第 3 个参数（函数入口 entry）写入 %rax + 56 指向的内存位置
-1. stmxcsr  	(%rax)：把 MXCSR 的值保存到 %rax 指向的内存位置
-1. fnstcw   	0x4(%rax)：把控制寄存器（FPU）的值保存到 %rax + 4 指向的内存位置
-1. leaq  	finish(%rip), %rcx：计算 finish 标签的地址存入 %rcx 寄存器中
-1. movq  	%rcx, 0x40(%rax)：把 %rcx 的值（即 finish 标签的地址）写入到 %rax + 64 指向的内存位置
+1. `movq    %rdi, %rax`：把第 1 个参数（StackStorage::bottom）加载到 `%rax` 寄存器中
+1. `andq    $-16, %rax`：把 %rax 的值按 16 字节向下对齐（StackStorage::bottom 是栈的最高位，即栈底）
+1. `leaq    -0x48(%rax), %rax`：把 %rax 的值 减 72 (9x8 bytes, sp - 0x48)
+1. `movq    %rdx, 0x38(%rax)`：把第 3 个参数（函数入口 entry）写入 `%rax + 56` 指向的内存位置 (sp - 0x10)
+1. `stmxcsr   (%rax)`：把 MXCSR 的值保存到 `%rax` 指向的内存位置
+1. `fnstcw    0x4(%rax)`：把控制寄存器（FPU）的值保存到 `%rax + 4` 指向的内存位置
+1. `leaq    finish(%rip), %rcx`：计算 finish 标签的地址存入 `%rcx` 寄存器中
+1. `movq    %rcx, 0x40(%rax)`：把 `%rcx` 的值（即 finish 标签的地址）写入到 `%rax + 64` 指向的内存位置 (sp - 0x08)
 
 
 
@@ -460,9 +457,9 @@ __asm (
 
 中间空出来的 6 个 8 字节的位置，接下来的 `bthread_jump_fcontext()` 会用到。
 
-
 **返回值**：
-寄存器 `%rax` 用于保存函数的返回值，因此 `bthread_make_fcontext()` 的返回值 context 指针指向了图中 %rax 标识的内存（即 `storage.bottom - 72` 的地址）。
+寄存器 `%rax` 用于保存函数的返回值，因此 `bthread_make_fcontext()` 的返回值 context 指针指向了图中 `%rax` 标识的内存（即 `storage.bottom - 72` 的地址）。
+
 # Summary
 
 - `get_stack()` 有两类调用：`TaskGroup::init()` 初始化时，栈类型为 `STACK_TYPE_MAIN`；切换栈（`TaskGroup::sched_to()`），执行任务（TaskMeta）之前，栈类型从 TaskMeta 中得到
