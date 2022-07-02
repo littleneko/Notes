@@ -1,5 +1,7 @@
 https://github.com/pingcap/awesome-database-learning
 
+How do we build TiDB: https://pingcap.com/zh/blog/how-do-we-build-tidb
+
 # 事务
 
 TiDB 事务隔离级别: https://docs.pingcap.com/zh/tidb/dev/transaction-isolation-levels#tidb-%E4%BA%8B%E5%8A%A1%E9%9A%94%E7%A6%BB%E7%BA%A7%E5%88%AB
@@ -32,6 +34,10 @@ TiDB 4.0 新特性前瞻（二）白话“悲观锁”: https://pingcap.com/zh/b
 **TiDB 悲观锁实现原理**: https://tidb.net/blog/7730ed79
 
 
+TiKV 源码解析系列文章（十一）Storage - 事务控制层: https://pingcap.com/zh/blog/tikv-source-code-reading-11
+TiKV 源码解析系列文章（十二）分布式事务: https://pingcap.com/zh/blog/tikv-source-code-reading-12
+
+
 
 # 分布式
 
@@ -40,6 +46,12 @@ Spanner - CAP, TrueTime and Transaction: https://pingcap.com/zh/blog/Spanner-cap
 **一致性模型**: https://segmentfault.com/a/1190000016785044
 
 **线性一致性和 Raft**: https://pingcap.com/zh/blog/linearizability-and-raft
+
+TiKV 功能介绍 - Raft 的优化: https://pingcap.com/zh/blog/optimizing-raft-in-tikv
+
+TiKV 功能介绍 - Lease Read: https://pingcap.com/zh/blog/lease-read
+
+基于 Raft 构建弹性伸缩的存储系统的一些实践: https://pingcap.com/zh/blog/building-distributed-db-with-raft
 
 
 # 存储
