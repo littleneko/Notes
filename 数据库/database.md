@@ -37,8 +37,6 @@ TiDB 4.0 新特性前瞻（二）白话“悲观锁”: https://pingcap.com/zh/b
 TiKV 源码解析系列文章（十一）Storage - 事务控制层: https://pingcap.com/zh/blog/tikv-source-code-reading-11
 TiKV 源码解析系列文章（十二）分布式事务: https://pingcap.com/zh/blog/tikv-source-code-reading-12
 
-
-
 # 分布式
 
 Spanner - CAP, TrueTime and Transaction: https://pingcap.com/zh/blog/Spanner-cap-truetime-transaction
