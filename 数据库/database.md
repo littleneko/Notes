@@ -20,6 +20,10 @@ TiKV 的 MVCC（Multi-Version Concurrency Control）机制: https://pingcap.com/
 
 Percolator 和 TiDB 事务算法: https://pingcap.com/zh/blog/percolator-and-txn
 
+Async Commit 原理介绍丨 TiDB 5.0 新特性： https://pingcap.com/zh/blog/async-commit-principle
+
+
+
 
 TiDB 乐观事务模型: https://docs.pingcap.com/zh/tidb/dev/optimistic-transaction
 
@@ -50,6 +54,8 @@ TiKV 功能介绍 - Raft 的优化: https://pingcap.com/zh/blog/optimizing-raft-
 TiKV 功能介绍 - Lease Read: https://pingcap.com/zh/blog/lease-read
 
 基于 Raft 构建弹性伸缩的存储系统的一些实践: https://pingcap.com/zh/blog/building-distributed-db-with-raft
+
+**TiDB 新特性漫谈：从 Follower Read 说起**: https://pingcap.com/zh/blog/follower-read-the-new-features-of-tidb
 
 
 # 存储
