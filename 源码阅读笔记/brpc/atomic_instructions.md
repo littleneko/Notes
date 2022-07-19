@@ -25,7 +25,7 @@
 - 一个依赖全局多生产者多消费者队列 (MPMC) 的程序难有很好的多核扩展性，因为这个队列的极限吞吐取决于同步cache 的延时，而不是核心的个数。最好是用多个 SPMC 或多个 MPSC 队列，甚至多个 SPSC 队列代替，在源头就规避掉竞争。
 - 另一个例子是计数器，如果所有线程都频繁修改一个计数器，性能就会很差，原因同样在于不同的核心在不停地同步同一个 cacheline。如果这个计数器只是用作打打日志之类的，那我们完全可以让每个线程修改 thread-local 变量，在需要时再合并所有线程中的值，性能可能有[几十倍的差别](https://github.com/apache/incubator-brpc/blob/master/docs/cn/bvar.md)。
 
-==一个相关的编程陷阱是 false sharing：对那些不怎么被修改甚至只读变量的访问，由于同一个 cacheline 中的其他变量被频繁修改，而不得不经常等待 cacheline 同步而显著变慢了。**多线程中的变量尽量按访问规律排列，频繁被其他线程修改的变量要放在独立的 cacheline中**==。要让一个变量或结构体按 cacheline 对齐，可以 include <butil/macros.h> 后使用`BAIDU_CACHELINE_ALIGNMENT` 宏，请自行 grep brpc 的代码了解用法。
+==一个相关的编程陷阱是 false sharing：对那些不怎么被修改甚至只读变量的访问，由于同一个 cacheline 中的其他变量被频繁修改，而不得不经常等待 cacheline 同步而显著变慢了。**多线程中的变量尽量按访问规律排列，频繁被其他线程修改的变量要放在独立的 cacheline中**==。要让一个变量或结构体按 cacheline 对齐，可以 include <butil/macros.h> 后使用 `BAIDU_CACHELINE_ALIGNMENT` 宏，请自行 grep brpc 的代码了解用法。
 
 # Memory fence
 仅靠原子技术实现不了对资源的访问控制，即使简单如 [spinlock](https://en.wikipedia.org/wiki/Spinlock) 或[引用计数](https://en.wikipedia.org/wiki/Reference_counting)，看上去正确的代码也可能会 crash。这里的关键在于**重排指令**导致了读写顺序的变化。只要没有依赖，代码中在后面的指令就可能跑到前面去，[编译器](http://preshing.com/20120625/memory-ordering-at-compile-time/)和 [CPU](https://en.wikipedia.org/wiki/Out-of-order_execution) 都会这么做。
@@ -55,14 +55,14 @@ if (ready) {
 
 
 
-通过这个简单例子，你可以窥见原子指令编程的复杂性了吧。为了解决这个问题，CPU 和编译器提供了 [memory fence](http://en.wikipedia.org/wiki/Memory_barrier)，让用户可以声明访存指令间的可见性 (visibility) 关系，boost 和 C++11 对 memory fence 做了抽象，总结为如下几种[memory order](http://en.cppreference.com/w/cpp/atomic/memory_order).
+通过这个简单例子，你可以窥见原子指令编程的复杂性了吧。为了解决这个问题，CPU 和编译器提供了 [memory fence](http://en.wikipedia.org/wiki/Memory_barrier)，让用户可以声明访存指令间的可见性 (visibility) 关系，boost 和 C++11 对 memory fence 做了抽象，总结为如下几种 [memory order](http://en.cppreference.com/w/cpp/atomic/memory_order).
 
 | **memory order** | **作用** |
 | --- | --- |
 | memory_order_relaxed | 没有 fencing 作用 |
 | memory_order_consume | 后面依赖此原子变量的访存指令勿重排至此条指令之前 |
 | memory_order_acquire | 后面访存指令勿重排至此条指令之前 |
-| memory_order_release | 前面访存指令勿重排至此条指令之后。当此条指令的结果对其他线程可见后，之前的所有指令都可见 |
+| memory_order_release | 前面访存指令勿重排至此条指令之后；当此条指令的结果对其他线程可见后，之前的所有指令都可见 |
 | memory_order_acq_rel | acquire + release 语意 |
 | memory_order_seq_cst | acq_rel 语意外加所有使用 seq_cst 的指令有严格地全序关系 |
 
@@ -82,7 +82,7 @@ if (ready.load(std::memory_order_acquire)) {
 线程 2 中的 acquire 和线程 1 的 release 配对，确保线程 2 在看到 ready==true 时能看到线程 1 release 之前所有的访存操作。
 
 
-注意，==memory fence 不等于可见性==，即使线程 2 恰好在线程 1 在把 ready 设置为 true 后读取了 ready 也不意味着它能看到 true，因为同步 cache 是有延时的。==memory fence 保证的是可见性的顺序：“假如我看到了 a 的最新值，那么我一定也得看到 b 的最新值”==。
+注意，==memory fence 不等于可见性==，即使线程 2 恰好在线程 1 在把 ready 设置为 true 后读取了 ready 也不意味着它能看到 true，因为同步 cache 是有延时的。==**memory fence 保证的是可见性的顺序**：“假如我看到了 a 的最新值，那么我一定也得看到 b 的最新值”==。
 
 
 一个相关问题是：如何知道看到的值是新还是旧？一般分两种情况：

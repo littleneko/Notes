@@ -8,13 +8,13 @@
 
 LevelDB 整体由以下 6 个模块构成：
 
-* MemTable：KV 数据在内存的存储格式，由 SkipList 组织，整体有序。
+* **MemTable**：KV 数据在内存的存储格式，由 SkipList 组织，整体有序。
 
-* Immutable MemTable：MemTable 达到一定阈值后变为不可写的 MemTable，等待被 Flush 到磁盘上。
-* Log：有点类似于文件系统的 Journal，用来保证 Crash 不丢数据、支持批量写的原子操作、转换随机写为顺序写。
-* SSTable：KV 数据在磁盘的存储格式，文件里面的 key 整体有序，一旦生成便是只读的，L0 可能会有 overlap，其他层 sstable 之间都是有序的。
-* Manifest：增量的保存 DB 的状态信息，使得重启或者故障后可以恢复到退出前的状态。
-* Current：记录当前最新的 Manifest 文件名。
+* **Immutable MemTable**：MemTable 达到一定阈值后变为不可写的 MemTable，等待被 Flush 到磁盘上。
+* **Log**：有点类似于文件系统的 Journal，用来保证 Crash 不丢数据，支持批量写的原子操作、转换随机写为顺序写。
+* **SSTable**：KV 数据在磁盘的存储格式，文件里面的 Key 整体有序，一旦生成便是只读的，L0 可能会有 Overlap，其他层 sstable 之间都是有序的。
+* **Manifest**：增量的保存 DB 的状态信息，使得重启或者故障后可以恢复到退出前的状态。
+* **Current**：记录当前最新的 Manifest 文件名。
 
 
 
@@ -82,9 +82,9 @@ private:
 >
 > ```c++
 > struct BlockContents {
->   Slice data;           // Actual contents of data
->   bool cachable;        // True iff data can be cached
->   bool heap_allocated;  // True iff caller should delete[] data.data()
+>   	Slice data;           // Actual contents of data
+>   	bool cachable;        // True iff data can be cached
+>   	bool heap_allocated;  // True iff caller should delete[] data.data()
 > };
 > ```
 
@@ -109,7 +109,7 @@ char* EncodeVarint64(char* dst, uint64_t value);
 
 ## ValueType 
 
-leveldb 更新（put/delete）某个 key 时不会操控到 db 中的数据，每次操作都是直接新插入一份 kv 数 据，具体的数据合并和清除由后台的 compact 完成。所以，每次 put，db 中就会新加入一份 KV 数据， 即使该 key 已经存在；而 delete 等同于 put 空的 value。为了区分真实 kv 数据和删除操作的 mock 数 据，使用 ValueType 来标识。
+leveldb 更新（put/delete）某个 key 时不会操控到 DB 中的数据，每次操作都是直接新插入一份 KV 数据，具体的数据合并和清除由后台的 Compact 完成。所以每次 put，DB 中就会新加入一份 KV 数据， 即使该 key 已经存在；而 delete 等同于 put 空的 Value。为了区分真实 KV 数据和删除操作的 Mock 数据，使用 ValueType 来标识。
 
 * 定义：
 
@@ -131,7 +131,7 @@ static const ValueType kValueTypeForSeek = kTypeValue;
 
 ## SequnceNnumber
 
-leveldb 中的每次更新（put/delete）操作都拥有一个版本，由 SequnceNumber 来标识，整个 db 有一个 全局值保存着当前使用到的 SequnceNumber。SequnceNumber 在 leveldb 有重要的地位，key 的排序， compact 以及 snapshot 都依赖于它。 
+leveldb 中的每次更新（put/delete）操作都拥有一个版本，由 SequnceNumber 来标识，整个 DB 有一个全局值保存着当前使用到的 SequnceNumber。SequnceNumber 在 leveldb 有重要的地位，key 的排序、compact 以及 snapshot 都依赖于它。 
 
 * 定义：
 
@@ -294,7 +294,7 @@ LookupKey::LookupKey(const Slice& user_key, SequenceNumber s) {
 
 db 内部做 key 排序时使用的比较方法。
 
-排序时，会先使用 user_comparator 比较 user_key，如果 user-key 相同，则比较 SequnceNumber，SequnceNumber 大的为小。因为 SequnceNumber 在 db 中全局 递增，所以，对于相同的 user_key，最新的更新（SequnceNumber 更大）排在前面，在查找的时候， 会被先找到。 
+排序时，会先使用 user_comparator 比较 user_key，如果 user-key 相同，则比较 SequnceNumber，SequnceNumber 大的为小。因为 SequnceNumber 在 db 中全局递增，所以，对于相同的 user_key，最新的更新（SequnceNumber 更大）排在前面，在查找的时候会被先找到。 
 
 ```cpp
 // A comparator for internal keys that uses a specified comparator for
@@ -335,7 +335,7 @@ int InternalKeyComparator::Compare(const Slice& akey, const Slice& bkey) const {
 }
 ```
 
-InternalKeyComparator 中 FindShortestSeparator（）/ FindShortSuccessor（）的实现，仅从传入 的内部 key 参数，解析出 user-key，然后再调用 user-comparator 的对应接口。
+InternalKeyComparator 中 FindShortestSeparator（）/ FindShortSuccessor（）的实现，仅从传入的内部 key 参数，解析出 user-key，然后再调用 user-comparator 的对应接口。
 
 ## WriteBatch
 
@@ -354,7 +354,7 @@ struct TableAndFile {
 
 ## Version
 
-将每次 compact 后的最新数据状态定义为 Version，也就是当前 db 元信息以及每个 level 上具有最新 数据状态的 sstable 集合。compact 会在某个 level 上新加入或者删除一些 sstable，但可能这个时候， 那些要删除的 sstable 正在被读，为了处理这样的读写竞争情况，基于 sstable 文件一旦生成就不会改动的特点，每个 Version 加入引用计数，读以及解除读操作会将引用计数相应加减一。这样， db 中 可能有多个 Version 同时存在（提供服务），它们通过链表链接起来。当 Version 的引用计数为 0 并 且不是当前最新的 Version 时，它会从链表中移除，对应的，该 Version 内的 sstable 就可以删除了（这些废弃的 sstable 会在下一次 compact 完成时被清理掉）。
+将每次 compact 后的最新数据状态定义为 Version，也就是当前 db 元信息以及每个 level 上具有最新数据状态的 sstable 集合。compact 会在某个 level 上新加入或者删除一些 sstable，但可能这个时候， 那些要删除的 sstable 正在被读，为了处理这样的读写竞争情况，基于 sstable 文件一旦生成就不会改动的特点，每个 Version 加入引用计数，读以及解除读操作会将引用计数相应加减一。这样，db 中可能有多个 Version 同时存在（提供服务），它们通过链表链接起来。当 Version 的引用计数为 0 并 且不是当前最新的 Version 时，它会从链表中移除；对应的，该 Version 内的 sstable 就可以删除了（这些废弃的 sstable 会在下一次 compact 完成时被清理掉）。
 
 ```cpp
 class Version {
