@@ -109,7 +109,7 @@ char* EncodeVarint64(char* dst, uint64_t value);
 
 ## ValueType 
 
-leveldb 更新（put/delete）某个 key 时不会操控到 DB 中的数据，每次操作都是直接新插入一份 KV 数据，具体的数据合并和清除由后台的 Compact 完成。所以每次 put，DB 中就会新加入一份 KV 数据， 即使该 key 已经存在；而 delete 等同于 put 空的 Value。为了区分真实 KV 数据和删除操作的 Mock 数据，使用 ValueType 来标识。
+leveldb 更新（put/delete）某个 key 时不会操控到 DB 中原有的数据，每次操作都是直接新插入一份 KV 数据，具体的数据合并和清除由后台的 Compact 完成。所以每次 put，DB 中就会新加入一份 KV 数据， 即使该 key 已经存在；而 delete 等同于 put 空的 Value。为了区分真实 KV 数据和删除操作的 Mock 数据，使用 ValueType 来标识。
 
 * 定义：
 
@@ -156,7 +156,7 @@ static uint64_t PackSequenceAndType(uint64_t seq, ValueType t) {
 
 ## ParsedInternalKey
 
-db 内部操作的 key，db 内部需要将 user key 加入元信息（ValueType/SequenceNumber）一并做处理。
+db 内部操作的 key。db 内部需要将 user key 加入元信息（ValueType/SequenceNumber）一并做处理。
 
 * 定义：
 
@@ -177,7 +177,7 @@ struct ParsedInternalKey {
 
 ## InternalKey
 
-db 内部，包装易用的结构，包含 userkey 与 SequnceNumber/ValueType。
+db 内部包装易用的结构，包含 user key 与 SequnceNumber/ValueType。
 
 * 格式：数据存储在一个 string 中，格式为：==**[user_key]\[SequnceNumber | ValueType]**==，后半部分固定 8 字节
 
@@ -294,7 +294,7 @@ LookupKey::LookupKey(const Slice& user_key, SequenceNumber s) {
 
 db 内部做 key 排序时使用的比较方法。
 
-排序时，会先使用 user_comparator 比较 user_key，如果 user-key 相同，则比较 SequnceNumber，SequnceNumber 大的为小。因为 SequnceNumber 在 db 中全局递增，所以，对于相同的 user_key，最新的更新（SequnceNumber 更大）排在前面，在查找的时候会被先找到。 
+排序时，会先使用 user_comparator 比较 user_key，如果 user_key 相同，则比较 SequnceNumber，SequnceNumber 大的为小。==因为 SequnceNumber 在 db 中全局递增，所以对于相同的 user_key，最新的更新（SequnceNumber 更大）排在前面，在查找的时候会被先找到==。 
 
 ```cpp
 // A comparator for internal keys that uses a specified comparator for
@@ -335,11 +335,11 @@ int InternalKeyComparator::Compare(const Slice& akey, const Slice& bkey) const {
 }
 ```
 
-InternalKeyComparator 中 FindShortestSeparator（）/ FindShortSuccessor（）的实现，仅从传入的内部 key 参数，解析出 user-key，然后再调用 user-comparator 的对应接口。
+InternalKeyComparator 中 FindShortestSeparator()/ FindShortSuccessor() 的实现，仅从传入的内部 key 参数，解析出 user_key，然后再调用 user_comparator 的对应接口。
 
 ## WriteBatch
 
-对若干数目 key 的 write 操作（put/delete）封装成 WriteBatch。它会将 userkey 连同 SequnceNumber 和 ValueType 先做 encode，然后做 decode，将数据 insert 到指定的 Handler （memtable）上面。上层的处理逻辑简洁，但 encode/decode 略有冗余。
+对若干数目 key 的 write 操作（put/delete）封装成 WriteBatch。它会将 userkey 连同 SequnceNumber 和 ValueType 先做 encode，然后做 decode，将数据 insert 到指定的 Handler (memtable) 上面。上层的处理逻辑简洁，但 encode/decode 略有冗余。
 
 ## TableCache
 
@@ -384,7 +384,7 @@ private:
 
 ## VersionSet
 
-整个 db 的当前状态被 VersionSet 管理着，其中有当前最新的 Version 以及其他正在服务的 Version 链表；全局的 SequnceNumber、FileNumber；当前的 manifest_file_number；封装 sstable 的 TableCache。 每个 level 中下一次 compact 要选取的 start_key 等等。
+整个 db 的当前状态被 VersionSet 管理着，其中有当前最新的 Version 以及其他正在服务的 Version 链表；全局的 SequnceNumber、FileNumber；当前的 manifest_file_number；封装 sstable 的 TableCache；每个 level 中下一次 compact 要选取的 start_key 等等。
 
 ```cpp
 class VersionSet {
@@ -465,13 +465,58 @@ MemTable 以及 Immutable MemTable 是 KV 数据在内存中的存储格式，�
 
 MemTable 的大小通过参数 *write_buffer_size* 控制，默认 4MB，最多 5MB dump（最大 batch size 为 1MB）成 SSTable。
 
-当一个 MemTable 大小达到阈值后，将会变成 Immutable MemTable，同时生成一个新的 MemTable 来支持新的写入，Compaction 线程将 Immutable MemTable Flush 到 L0/L1/… 上。所以在LevelDB中，同时最多只会存在两个 MemTable，一个可写的，一个只读的。
+当一个 MemTable 大小达到阈值后，将会变成 Immutable MemTable，同时生成一个新的 MemTable 来支持新的写入，Compaction 线程将 Immutable MemTable Flush 到 L0/L1/… 上。所以在LevelDB中，同时最多只会存在两个 MemTable：一个可写的，一个只读的。
 
-
+### 数据格式
 
 由于 SkipList 是链表形式的，所以我们需要把 KV 数据的映射形式转换成该形式，如图所示，[start, node_end] 区间就代表一个 SkipList Node。
 
 <img src="https://littleneko.oss-cn-beijing.aliyuncs.com/img/v2-00a21206a818ce6d3a9ae0d35b9e0363_1440w.jpg" alt="img" style="zoom:50%;" />
+
+### Comparator
+
+SkipList 插入和查找节点时需要自定义 Comparator，MemTable 初始化时使用 MemTable::KeyComparator 作为 SkipList 的 Comparator。MemTable::KeyComparator 接受 SkipList Node 数据作为其参数，比较流程是先取出 SkipList Node 中的 InternalKey，然后调用 InternalKeyComparator 的 Compare 方法（先比较 user_key，相同时再比较 SequenceNumber）。
+
+```c++
+static Slice GetLengthPrefixedSlice(const char* data) {
+  uint32_t len;
+  const char* p = data;
+  p = GetVarint32Ptr(p, p + 5, &len);  // +5: we assume "p" is not corrupted
+  return Slice(p, len);
+}
+
+int MemTable::KeyComparator::operator()(const char* aptr,
+                                        const char* bptr) const {
+  // Internal keys are encoded as length-prefixed strings.
+  Slice a = GetLengthPrefixedSlice(aptr);
+  Slice b = GetLengthPrefixedSlice(bptr);
+  return comparator.Compare(a, b);
+}
+```
+
+### Add/Get
+
+Add 接口很简单，主要是生成如上图所示的 SkipList Node 格式，然后调用 `SkipList::Insert()` 插入到 SkipList 中。
+
+
+
+Get 的步骤稍微复杂一些，分为两步：
+
+1. 根据 memtable_key 在 SkipList 中 Seek
+2. 如果找到的 SkipList Node 的 user_key 相等，就算找到，==不需要比较 SequenceNumber 是否相等==；否则出错
+
+首先，Seek 的语义是找到第一个**大于等于**给定 Key 的节点，等于肯定是找到了，大于分为两种情况：
+
+* 没找到给定的 memtable_key 中的 user_key，简单来说就是没找到
+* ==找到了给定的 memtable_key 中的 user_key，但是 SequenceNumber 比 memtable_key 中的要小（InternalKeyComparator 中 SequenceNumber 越小的越大），也就是找到了一个比指定 user_key 的版本更小的数据==。（可能会有比指定版本更大版本的数据存在）
+
+综上所述，==MemTable::Get() 的语义是返回指定 user_key 小于等于 SequenceNumber 的最大版本的值==。
+
+因此，在 `iter.Valid()` 的情况下还需要再次比较 user_key 是否相等，而不需要比较 SequenceNumber 是否相等。
+
+> **Tips**:
+>
+> 在实际的使用中，调用 MemTable::Get() 的时候传入的 SequenceNumber 只有两种情况：Snapshot 的 SequenceNumber 和 当前系统最新的 SequenceNumber，前者是查找特定版本的数据，后者是查找最新的 user_key 的数据。（@see: DBImpl::Get()）
 
 ## WAL/LOG
 
@@ -489,11 +534,15 @@ WAL 即 Log，每次数据都会先顺序写到 Log 中，然后再写入 MemTab
 
 ### Record Format
 
-<img src="https://littleneko.oss-cn-beijing.aliyuncs.com/img/v2-297b2d28520fbab67587471b2a1973b8_1440w.jpg" alt="img" style="zoom:50%;" />
+```
++---------------+-------------+-----------+----------+
+|	Checksum(4B)	|	Length(2B)	|	Type(1B)	|	Data		 |
++---------------+-------------+-----------+----------+
+```
 
 - checksum：计算 type 和 data 的 crc。
 - length：data 的长度，2Byte 可表示 64KB，而 block 为 32KB，刚好够用。
-- type：一个 record 可以在一个或者跨越多个 block，类型有 5 种：FULL、First、Middle、Last、Zero (预分配连续的磁盘空间用)。
+- type：一个 record 可以在一个或者跨越多个 block，类型有 5 种：Full、First、Middle、Last、Zero (预分配连续的磁盘空间用)。
 - data：用户的 kv 数据。
 
 ### Read

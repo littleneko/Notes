@@ -11,6 +11,7 @@ Notes
         1. [C++ Memory Order (2)](./%E5%AD%A6%E4%B9%A0%E7%AC%94%E8%AE%B0/C%2B%2B/C%2B%2B%20Memory%20Order%20%282%29.md)
         1. [C++ Memory Order (3)](./%E5%AD%A6%E4%B9%A0%E7%AC%94%E8%AE%B0/C%2B%2B/C%2B%2B%20Memory%20Order%20%283%29.md)
         1. [C++ Memory Order (4)](./%E5%AD%A6%E4%B9%A0%E7%AC%94%E8%AE%B0/C%2B%2B/C%2B%2B%20Memory%20Order%20%284%29.md)
+        1. [Clang-Tidy: Pass by value and use std::move](./%E5%AD%A6%E4%B9%A0%E7%AC%94%E8%AE%B0/C%2B%2B/Clang-Tidy%3A%20Pass%20by%20value%20and%20use%20std%3A%3Amove.md)
         1. [Coroutines in C](./%E5%AD%A6%E4%B9%A0%E7%AC%94%E8%AE%B0/C%2B%2B/Coroutines%20in%20C.md)
         1. [RVO_NRVO](./%E5%AD%A6%E4%B9%A0%E7%AC%94%E8%AE%B0/C%2B%2B/RVO_NRVO.md)
         1. [SFINAE and std::enable_if](./%E5%AD%A6%E4%B9%A0%E7%AC%94%E8%AE%B0/C%2B%2B/SFINAE%20and%20std%3A%3Aenable_if.md)
