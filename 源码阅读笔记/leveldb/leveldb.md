@@ -505,12 +505,12 @@ Get 的步骤稍微复杂一些，分为两步：
 1. 根据 memtable_key 在 SkipList 中 Seek
 2. 如果找到的 SkipList Node 的 user_key 相等，就算找到，==不需要比较 SequenceNumber 是否相等==；否则出错
 
-首先，Seek 的语义是找到第一个**大于等于**给定 Key 的节点，等于肯定是找到了，大于分为两种情况：
+首先，Seek 的语义是找到==第一个**大于等于**给定 Key 的节点==，等于的情况肯定是找到了，大于分为两种情况：
 
 * 没找到给定的 memtable_key 中的 user_key，简单来说就是没找到
 * ==找到了给定的 memtable_key 中的 user_key，但是 SequenceNumber 比 memtable_key 中的要小（InternalKeyComparator 中 SequenceNumber 越小的越大），也就是找到了一个比指定 user_key 的版本更小的数据==。（可能会有比指定版本更大版本的数据存在）
 
-综上所述，==MemTable::Get() 的语义是返回指定 user_key 小于等于 SequenceNumber 的最大版本的值==。
+综上所述，==**MemTable::Get() 的语义是返回指定 user_key 小于等于 SequenceNumber 的最大版本的值**==。
 
 因此，在 `iter.Valid()` 的情况下还需要再次比较 user_key 是否相等，而不需要比较 SequenceNumber 是否相等。
 
@@ -638,7 +638,7 @@ class BlockHandle {
 
 **BlockContents**
 
-BlockContents 表示一个 Block 的数据，ReadBlock() 通过 BlockHandle 的信息读取一个 Block，然后把数据保存在 BlockContents 中：
+BlockContents 保存一个 Block 的数据，ReadBlock() 函数根据 BlockHandle 中的信息读取一个 Block，然后把数据保存在 BlockContents 中：
 
 ```cpp
 struct BlockContents {
@@ -650,7 +650,7 @@ struct BlockContents {
 
 ### Block
 
-Block 中保存了读取到的数据，并且提供对 Block 中每个 Record 遍历的接口。
+Block 即上图中的 DataBlock/MetaBlock/MetaIndexBlockIndexBlock 的抽象，提供对 Block 中每个 Record 遍历的接口（Record 可能是 KV data、Index 等）。
 
 ```cpp
 class Block {
@@ -678,15 +678,15 @@ class Block {
 };
 ```
 
-* **restart_offset_** 表示 restart 数据开始的 offset，可以直接算出来：
+* **restart_offset_** 表示 restart 数据的起始位置 offset，计算方法是：
 
-  `restart_offset_ = size_ - (1 + NumRestarts()) * sizeof(uint32_t);`
+  `restart_offset_ = size_ - (1 + num_restarts) * sizeof(uint32_t);` （即 N 个 4 字节的 restart 和 1 个 4 字节的 num_restarts）
 
-* **size_** 不包括 compression_type 和 crc32 的部分
+* **size_**：即 BlockContents::data 的 size，不包括 compression_type 和 crc32 的部分
 
-#### Iter
+#### Iterator
 
-Iter 可以顺序遍历，同时支持根据 key Seek，实现是==二分查找==。
+Iter 可以顺序遍历、逆序遍历、根据 key Seek 三种方式访问，其中 Seek 的语义是 “==定位到**第一个大于等于** target 的位置==”，这也是 leveldb 中所有继承自 Iterator 的迭代器的语义。
 
 ```cpp
 class Block::Iter : public Iterator {
@@ -709,6 +709,48 @@ class Block::Iter : public Iterator {
 
 * **current_** 表示当前 value(record) 在 block 中的 offset，初始值是 restarts_，即 iter 初始是 !Valid，在第一次使用之前需要先 SeekToFirst()
 * **value_** 表示当前的 value(record)，在 SeekToFirst() 之后才会真正表示第一个 record 的值
+
+> **Tips**:
+>
+> Iterator 的定义如下，目前继承自该 Iterator 的对象有：Block::Iter、DBIter、Version::LevelFileNumIterator、MemTableIterator、MergingIterator、TwoLevelIterator，这些 Iter 的 Seek 方法的语义都是定位到第一个大于等于 target 的位置。另外，SkipList 的 Iter 虽然不是继承自该类，但是其 Seek 方法的语义也相同。
+>
+> ```cpp
+> class LEVELDB_EXPORT Iterator {
+>  public:
+>   Iterator();
+>   
+>   // An iterator is either positioned at a key/value pair, or
+>   // not valid.  This method returns true iff the iterator is valid.
+>   virtual bool Valid() const = 0;
+> 
+>   // Position at the first key in the source.  The iterator is Valid()
+>   // after this call iff the source is not empty.
+>   virtual void SeekToFirst() = 0;
+> 
+>   // Position at the last key in the source.  The iterator is
+>   // Valid() after this call iff the source is not empty.
+>   virtual void SeekToLast() = 0;
+> 
+>   // Position at the first key in the source that is at or past target.
+>   // The iterator is Valid() after this call iff the source contains
+>   // an entry that comes at or past target.
+>   virtual void Seek(const Slice& target) = 0;
+> 
+>   // Moves to the next entry in the source.  After this call, Valid() is
+>   // true iff the iterator was not positioned at the last entry in the source.
+>   // REQUIRES: Valid()
+>   virtual void Next() = 0;
+> 
+>   // Moves to the previous entry in the source.  After this call, Valid() is
+>   // true iff the iterator was not positioned at the first entry in source.
+>   // REQUIRES: Valid()
+>   virtual void Prev() = 0;
+>   
+>   // ... ...
+> }
+> ```
+
+**SeekToFirst**
 
 ```cpp
   void SeekToFirst() override {
@@ -735,7 +777,9 @@ class Block::Iter : public Iterator {
 
 SeekToRestartPoint(0) 实际上是把 restart_index_ 置为 0，GetRestartPoint(0) 返回的是第 0 个 restart 指向的数据的 offset，也就是 0；最后当前 value 的值置为指向 data 大小为 0 的值，这里是为了方便 ParseNextKey() 统一处理。
 
-ParseNextKey 用于处理下一个 value，可能需要把 restart_index_ 指针移动到下一个位置：
+##### 顺序遍历
+
+顺序遍历即调用 Next 进行遍历，ParseNextKey 用于处理下一个 value，可能需要把 restart_index_ 指针移动到下一个位置：
 
 ```cpp
   // Return the offset in data_ just past the end of the current entry.
@@ -746,6 +790,7 @@ ParseNextKey 用于处理下一个 value，可能需要把 restart_index_ 指针
   }
 
 	bool ParseNextKey() {
+    // 根据上一个 value 大小计算出当前 value 的起始位置
     // SeekToFirst 后, 第一次返回值为 0
     current_ = NextEntryOffset();
     const char* p = data_ + current_;
@@ -759,11 +804,13 @@ ParseNextKey 用于处理下一个 value，可能需要把 restart_index_ 指针
       CorruptionError();
       return false;
     } else {
-      key_.resize(shared);
-      key_.append(p, non_shared);
+      key_.resize(shared); // 保留和前一个 key 相比 shared 部分的 key
+      key_.append(p, non_shared); // DecodeEntry 完成后, p 移动到了 nonshared_key 数据的位置
       value_ = Slice(p + non_shared, value_length);
-      // 判断是否需要把 restart_index_ 向后移动, 如果下一个 restart 指向的数据 offset 比当前的数据 offset 小,
-      // 即当前的 record 应该是 restart_index + 1 的 restart 来表示的
+      // 判断当前的 record 是否还在 restart_index_ 表示的 restart group 中, 即需要把 restart_index_ 向后移动, 
+      // 如果下一个 restart index 指向的数据的 offset 比当前的数据的 offset 小,
+      // 即当前的 record 应该在 restart_index + 1 的 restart group 中,
+      // 就需要移动到下一个 restart group
       while (restart_index_ + 1 < num_restarts_ && GetRestartPoint(restart_index_ + 1) < current_) {
         ++restart_index_;
       }
@@ -772,6 +819,102 @@ ParseNextKey 用于处理下一个 value，可能需要把 restart_index_ 指针
   }
 };
 ```
+
+##### 逆序遍历
+
+```cpp
+  void Prev() override {
+    assert(Valid());
+
+    // Scan backwards to a restart point before current_
+    const uint32_t original = current_;
+    // 当上一次遍历到了 restart group 的第一个元素的时候, 等号成立,
+    // 因此需要移动到前一个 restart group. (正常来说是不会大于的)
+    while (GetRestartPoint(restart_index_) >= original) {
+      if (restart_index_ == 0) {
+        // No more entries
+        current_ = restarts_;
+        restart_index_ = num_restarts_;
+        return;
+      }
+      restart_index_--;
+    }
+
+    // 每次都从该 restart group 的第一个元素向后遍历，直到找到上次遍历到的元素(original)的前一个元素
+    SeekToRestartPoint(restart_index_);
+    do {
+      // Loop until end of current entry hits the start of original entry
+    } while (ParseNextKey() && NextEntryOffset() < original);
+  }
+```
+
+> **Tips**:
+>
+> 从实现上能看到，逆序遍历每次都要从 restart group 的第一个元素向后遍历一遍，效率比正序遍历要差。
+
+##### Seek
+
+Seek 的语义是定位到==**第一个大于等于** target 的 key==，Seek 的时候使用传入的自定义 Comparator 进行 key 的比较，默认是 InternalKeyComparator，因此实际上是定位到比给定 key 版本相等或小的最大版本的位置。由于 Block 内的数据是有序的，因此 Seek 可以用==二分查找==的方式。
+
+在 Seek 的实现上有个优化，首先用 target 和当前遍历到的 key 进行比较，缩小二分查找的 left 或 right 范围。
+
+
+
+==二分查找的对象是 restart array==，目的是找到==**最大**的 restart point 满足 key < target==（https://github.com/google/leveldb/issues/109）。
+
+```cpp
+    while (left < right) {
+      uint32_t mid = (left + right + 1) / 2;
+      uint32_t region_offset = GetRestartPoint(mid);
+      uint32_t shared, non_shared, value_length;
+      const char* key_ptr =
+          DecodeEntry(data_ + region_offset, data_ + restarts_, &shared, &non_shared, &value_length);
+      if (key_ptr == nullptr || (shared != 0)) {
+        CorruptionError();
+        return;
+      }
+      Slice mid_key(key_ptr, non_shared);
+      if (Compare(mid_key, target) < 0) {
+        // Key at "mid" is smaller than "target".  Therefore all
+        // blocks before "mid" are uninteresting.
+        left = mid;
+      } else {
+        // Key at "mid" is >= "target".  Therefore all blocks at or
+        // after "mid" are uninteresting.
+        right = mid - 1;
+      }
+    }
+```
+
+接着从找到的 key 的位置（left）向后遍历，直到找到 first key >= target。
+
+```cpp
+    // We might be able to use our current position within the restart block.
+    // This is true if we determined the key we desire is in the current block
+    // and is after than the current key.
+    assert(current_key_compare == 0 || Valid());
+    bool skip_seek = left == restart_index_ && current_key_compare < 0;
+    if (!skip_seek) {
+      SeekToRestartPoint(left);
+    }
+    // Linear search (within restart block) for first key >= target
+    while (true) {
+      if (!ParseNextKey()) {
+        return;
+      }
+      if (Compare(key_, target) >= 0) {
+        return;
+      }
+    }
+```
+
+> **Tips**:
+>
+> 1. 每个 restart group 的第一个 key，保存的都是完整的 key，因此 shared size 应该是 0；然后遍历到下一个 key 的时候，只需要跳过下一个 key 的 shared size，然后 append non_shared 部分即可。
+> 2. restart_index_ 的作用：
+>    1. 在顺序遍历（Next）的时候，实际上没什么作用，但是仍然要记录下来，目的是为了逆序遍历（Prev）
+>    2. 在逆序遍历（Prev）的时候，遍历到一个 restart group 的第一个元素的时候，下一次需要跳到上一个 restart group 的起始位置按顺序遍历，原因是 record 存储的时候做了前缀压缩，必须从一个 restart group 的第一个元素向后遍历。（因此逆序遍历时每次都要从当前 restart group 的第一个元素向后遍历一遍）
+>    3. 在 Seek 的时候，同样需要以 restart group 为单位做二分查找。
 
 ---
 
@@ -821,7 +964,7 @@ Status ReadBlock(RandomAccessFile* file, const ReadOptions& options,
 
 Record 实现了前缀压缩，每 block_restart_interval 个 record 重新开始计算压缩前缀。
 
-* shared key size：和前一个 key 相同的部分的长度
+* shared key size：和==前一个== key 相同的部分的长度
 * noshared key size：剩余部分 key 的长度
 * value size：value 的长度
 * noshared key：noshared key 的数据
