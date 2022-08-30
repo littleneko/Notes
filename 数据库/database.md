@@ -57,6 +57,8 @@ TiKV 功能介绍 - Lease Read: https://pingcap.com/zh/blog/lease-read
 
 **TiDB 新特性漫谈：从 Follower Read 说起**: https://pingcap.com/zh/blog/follower-read-the-new-features-of-tidb
 
+中心化还是去中心化？揭秘 TiDB 5.0 事务分布式授时模块: https://pingcap.com/zh/blog/preliminary-study-on-cross-center-deployment-capability-of-tidb5.0
+
 
 # 存储
 
