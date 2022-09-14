@@ -93,13 +93,15 @@ Notes
         1. [bthread (5)：生产者和消费者同步](./%E6%BA%90%E7%A0%81%E9%98%85%E8%AF%BB%E7%AC%94%E8%AE%B0/bthread/bthread%20%285%29%EF%BC%9A%E7%94%9F%E4%BA%A7%E8%80%85%E5%92%8C%E6%B6%88%E8%B4%B9%E8%80%85%E5%90%8C%E6%AD%A5.md)
         1. [bthread (6)：WorkStealingQueue](./%E6%BA%90%E7%A0%81%E9%98%85%E8%AF%BB%E7%AC%94%E8%AE%B0/bthread/bthread%20%286%29%EF%BC%9AWorkStealingQueue.md)
         1. [bthread (7)：butex](./%E6%BA%90%E7%A0%81%E9%98%85%E8%AF%BB%E7%AC%94%E8%AE%B0/bthread/bthread%20%287%29%EF%BC%9Abutex.md)
+        1. [bthread (8)：ExecutionQueue](./%E6%BA%90%E7%A0%81%E9%98%85%E8%AF%BB%E7%AC%94%E8%AE%B0/bthread/bthread%20%288%29%EF%BC%9AExecutionQueue.md)
     1. **etcd**
         1. [[转载] etcd raft 设计与实现(一)](./%E6%BA%90%E7%A0%81%E9%98%85%E8%AF%BB%E7%AC%94%E8%AE%B0/etcd/%5B%E8%BD%AC%E8%BD%BD%5D%20etcd%20raft%20%E8%AE%BE%E8%AE%A1%E4%B8%8E%E5%AE%9E%E7%8E%B0%28%E4%B8%80%29.md)
         1. [[转载] etcd raft 设计与实现(二)](./%E6%BA%90%E7%A0%81%E9%98%85%E8%AF%BB%E7%AC%94%E8%AE%B0/etcd/%5B%E8%BD%AC%E8%BD%BD%5D%20etcd%20raft%20%E8%AE%BE%E8%AE%A1%E4%B8%8E%E5%AE%9E%E7%8E%B0%28%E4%BA%8C%29.md)
     1. **leveldb**
         1. [leveldb (1): 基本概念和数据结构](./%E6%BA%90%E7%A0%81%E9%98%85%E8%AF%BB%E7%AC%94%E8%AE%B0/leveldb/leveldb%20%281%29%3A%20%E5%9F%BA%E6%9C%AC%E6%A6%82%E5%BF%B5%E5%92%8C%E6%95%B0%E6%8D%AE%E7%BB%93%E6%9E%84.md)
         1. [leveldb (2): SSTable](./%E6%BA%90%E7%A0%81%E9%98%85%E8%AF%BB%E7%AC%94%E8%AE%B0/leveldb/leveldb%20%282%29%3A%20SSTable.md)
-        1. [leveldb (3): 读写流程和 Compaction](./%E6%BA%90%E7%A0%81%E9%98%85%E8%AF%BB%E7%AC%94%E8%AE%B0/leveldb/leveldb%20%283%29%3A%20%E8%AF%BB%E5%86%99%E6%B5%81%E7%A8%8B%E5%92%8C%20Compaction.md)
+        1. [leveldb (3): 读写流程和 Recovery](./%E6%BA%90%E7%A0%81%E9%98%85%E8%AF%BB%E7%AC%94%E8%AE%B0/leveldb/leveldb%20%283%29%3A%20%E8%AF%BB%E5%86%99%E6%B5%81%E7%A8%8B%E5%92%8C%20Recovery.md)
+        1. [leveldb (4): Compaction](./%E6%BA%90%E7%A0%81%E9%98%85%E8%AF%BB%E7%AC%94%E8%AE%B0/leveldb/leveldb%20%284%29%3A%20Compaction.md)
 1. **读书笔记**
     1. **C++ 并发编程实战**
         1. [C++ 并发编程(1)：线程 (std::thread)](./%E8%AF%BB%E4%B9%A6%E7%AC%94%E8%AE%B0/C%2B%2B%20%E5%B9%B6%E5%8F%91%E7%BC%96%E7%A8%8B%E5%AE%9E%E6%88%98/C%2B%2B%20%E5%B9%B6%E5%8F%91%E7%BC%96%E7%A8%8B%281%29%EF%BC%9A%E7%BA%BF%E7%A8%8B%20%28std%3A%3Athread%29.md)

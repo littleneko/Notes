@@ -40,7 +40,10 @@ struct BAIDU_CACHELINE_ALIGNMENT Butex {
     internal::FastPthreadMutex waiter_lock;
 };
 ```
-`Butex::value` 是一个 int 原子变量，`butex_create()` 返回的实际上是 value，而不是 Butex 对象，在使用中是通过 `container_of()` 宏拿到 Butex 对象的；`Butex::waiters` 是一个链表，保存了等待在该 Butex 上的所有 bthread。
+* `Butex::value` 是一个 int 原子变量，`butex_create()` 返回的实际上是 value，而不是 Butex 对象，在使用中通过 `container_of()` 宏拿到 Butex 对象；
+
+* `Butex::waiters` 是一个链表，保存了等待在该 Butex 上的所有 bthread；
+* `waiter_lock` TODO
 
 ---
 
@@ -105,7 +108,7 @@ struct ButexPthreadWaiter : public ButexWaiter {
 
 typedef butil::LinkedList<ButexWaiter> ButexWaiterList;
 ```
-ButexWaiter 继承自 butil::LinkNode<T>，分为 bthread 和 pthread 两种实现，主要是保存了 bthread/pthread 的状态。
+ButexWaiter 继承自 butil::LinkNode\<T\>，分为 bthread 和 pthread 两种实现，主要是保存了 bthread/pthread 的状态。
 
 
 ## 初始化和销毁
@@ -137,9 +140,10 @@ int butex_wait(void* butex, int expected_value, const timespec* abstime);
 ```
 butex_wait 的逻辑和 FUTEX_WAIT 一样，如果 butex 的值和 expected_value 相等，就会一直阻塞在该 butext 上，直到被 wake 或者 timeout，与 FUTEX_WAIT 不同的是，超时时间是一个绝对时间。
 
-
 主要代码流程下面分解来讲：
+
 首先根据 butex 指针（实际上是 Butex::value）拿到 Butex 对象，这里不再赘述。
+
 ```cpp
     if (b->value.load(butil::memory_order_relaxed) != expected_value) {
         errno = EWOULDBLOCK;
@@ -150,7 +154,7 @@ butex_wait 的逻辑和 FUTEX_WAIT 一样，如果 butex 的值和 expected_valu
     }
 ```
 wait 的语义是如果 expected_value 和 butex.value 相等就阻塞，这里首先判断是否满足这个条件，不满足就直接返回。
-注意这里加了一个 atomic_thread_fence 内存屏障，目的是 // todo。
+注意这里加了一个 `atomic_thread_fence` 内存屏障，目的是 // todo。
 
 
 ```cpp
@@ -159,7 +163,7 @@ wait 的语义是如果 expected_value 和 butex.value 相等就阻塞，这里�
         return butex_wait_from_pthread(g, b, expected_value, abstime);
     }
 ```
-如果当前 TaskGroup 在 pthread 上，就调用 pthread 相关的 wait 函数 butex_wait_from_pthread()，其实现后面单独讲。
+如果当前 TaskGroup 在 pthread 上，就调用 pthread 相关的 wait 函数 `butex_wait_from_pthread()`，其实现后面单独讲。
 
 
 ```cpp

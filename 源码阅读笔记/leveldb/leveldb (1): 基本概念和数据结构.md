@@ -283,10 +283,12 @@ LookupKey::LookupKey(const Slice& user_key, SequenceNumber s) {
 
 ## Comparator
 
-对 key 排序时使用的比较方法。leveldb 中 key 为升序。用户可以自定义 userkey 的 comparator (user_comparator)，作为 option 传入，默认采用 byte compare(memcmp)， comparator 中有 FindShortestSeparator()/ FindShortSuccessor() 两个接口：
+对 key 排序时使用的比较方法。leveldb 中 key 为升序。用户可以自定义 userkey 的 comparator (user_comparator)，作为 option 传入，默认采用 byte compare(memcmp)， comparator 中有 `FindShortestSeparator()` / `FindShortSuccessor()` 两个接口：
 
-* FindShortestSeparator(start, limit) 是获得大于 start 但小于 limit 的最小值。
-* FindShortSuccessor(start) 是获得比 start 大的最小值。比较都基于 user_commparator，二者会被用来确定 sstable 中 block 的 end_key。
+* `FindShortestSeparator(start, limit)` 是获得大于 start 但小于 limit 的最小值。
+* `FindShortSuccessor(start)` 是获得比 start 大的最小值。
+
+比较都基于 user_commparator，二者会被用来确定 sstable 中 block 的 end_key。
 
 源码文件：include/leveldb/comparator.h util/comparator.cc
 
@@ -475,7 +477,7 @@ MemTable 的大小通过参数 *write_buffer_size* 控制，默认 4MB，最多 
 
 ### Comparator
 
-SkipList 插入和查找节点时需要自定义 Comparator，MemTable 初始化时使用 MemTable::KeyComparator 作为 SkipList 的 Comparator。MemTable::KeyComparator 接受 SkipList Node 数据作为其参数，比较流程是先取出 SkipList Node 中的 InternalKey，然后调用 InternalKeyComparator 的 Compare 方法（先比较 user_key，相同时再比较 SequenceNumber）。
+SkipList 插入和查找节点时需要自定义 Comparator，MemTable 初始化时使用 `MemTable::KeyComparator` 作为 SkipList 的 Comparator。`MemTable::KeyComparator` 接受 SkipList Node 数据作为其参数，比较流程是先取出 SkipList Node 中的 InternalKey，然后调用 InternalKeyComparator 的 Compare 方法（先比较 user_key，相同时再比较 SequenceNumber）。
 
 ```c++
 static Slice GetLengthPrefixedSlice(const char* data) {
@@ -516,7 +518,7 @@ Get 的步骤稍微复杂一些，分为两步：
 
 > **Tips**:
 >
-> 在实际的使用中，调用 MemTable::Get() 的时候传入的 SequenceNumber 只有两种情况：Snapshot 的 SequenceNumber 和 当前系统最新的 SequenceNumber，前者是查找特定版本的数据，后者是查找最新的 user_key 的数据。（@see: DBImpl::Get()）
+> 在实际的使用中，调用 `MemTable::Get()` 的时候传入的 SequenceNumber 只有两种情况：Snapshot 的 SequenceNumber 和 当前系统最新的 SequenceNumber，前者是查找特定版本的数据，后者是查找最新的 user_key 的数据。（@see: DBImpl::Get()）
 
 ## WAL/LOG
 

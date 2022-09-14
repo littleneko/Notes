@@ -403,7 +403,7 @@ Record 实现了前缀压缩，每 block_restart_interval 个 record 重新开�
 * noshared key：noshared key 的数据
 * value：value 的数据
 
-Record 格式在上面的图中已经给出，详细读取和写入可以参考 DecodeEntry() 和 BlockBuilder::Add() 函数的实现。
+Record 格式在上面的图中已经给出，详细读取和写入可以参考 `DecodeEntry()` 和 `BlockBuilder::Add()` 函数的实现。
 
 ```cpp
 // Helper routine: decode the next block entry starting at "p",
@@ -438,11 +438,11 @@ static inline const char* DecodeEntry(const char* p, const char* limit,
 
 ## Index Block
 
-Index Block 也是一个普通的 Block，其数据存储方式和数据 Block 没有区别，也是以 Record 为单位，不过其 block_restart_interval 的值为 1（即没有前缀压缩），在 TableBuilder::Rep 初始化的时候会设置 index_block_options.block_restart_interval 为 1。
+Index Block 也是一个普通的 Block，其数据存储方式和数据 Block 没有区别，也是以 Record 为单位，不过其 *block_restart_interval* 的值为 1（即没有前缀压缩），在 `TableBuilder::Rep` 初始化的时候会设置 index_block_options.block_restart_interval 为 1。
 
 Index Block 中存储的是当前 sstable 中每个 data block 的最大值，以及 offset 和 size，可以方便定位到一个 block。
 
-TableBuilder::Rep 中与 Index Block 相关的 field 如下：
+`TableBuilder::Rep` 中与 Index Block 相关的 field 如下：
 
 ```cpp
 struct TableBuilder::Rep {
@@ -470,7 +470,7 @@ struct TableBuilder::Rep {
 
 
 
-index block 的写入也是调用 Block::Add() 函数完成的，和 data block 没有区别，只是 data block 的 kv 是用户写入的 kv，index 的 kv 是 last_key 和 BlockHandle 信息。
+index block 的写入也是调用 `Block::Add()` 函数完成的，和 data block 没有区别，只是 data block 的 kv 是用户写入的 kv，index 的 kv 是 last_key 和 BlockHandle 信息。
 
 ```cpp
   if (r->pending_index_entry) {
@@ -515,7 +515,7 @@ leveldb 中用 Table 类表示一个 SSTable，Table 对外提供 Iter 和 Get �
 
 ## Init (Open)
 
-静态函数 Table::Open 构造并初始化一个 Table 对象，open 一个 SSTable 文件分为以下几步：
+静态函数 `Table::Open()` 构造并初始化一个 Table 对象，open 一个 SSTable 文件分为以下几步：
 
 1. 读取并解析 Footer
 
@@ -609,7 +609,7 @@ Status Table::InternalGet(const ReadOptions& options, const Slice& k, void* arg,
 }
 ```
 
-前面我们介绍 Iterator 的时候知道，Iterator::Seek() 只是找到第一个大于等于给定 Key 的数据，大于的情况可能是 user_key 相等版本更小，也有可能是 user_key 就不相等，因此需要调用者处理，这里是在回调函数（handle_result）中处理的：
+前面我们介绍 Iterator 的时候知道，`Iterator::Seek()` 只是找到第一个大于等于给定 Key 的数据，大于的情况可能是 user_key 相等版本更小，也有可能是 user_key 就不相等，因此需要调用者处理，这里是在回调函数（handle_result）中处理的：
 
 ```cpp
 // file: version.cc
@@ -762,7 +762,7 @@ struct TableBuilder::Rep {
 
 其中，pending_index_entry 表示当前是否构造完并写入了一个 DataBlock，需要写入这个 DataBlock 的 index 信息。
 
-TableBuilder::Add() 用于写入一条 kv 数据：
+`TableBuilder::Add()` 用于写入一条 kv 数据：
 
 ```cpp
 void TableBuilder::Add(const Slice& key, const Slice& value) {
@@ -795,7 +795,7 @@ void TableBuilder::Add(const Slice& key, const Slice& value) {
 }
 ```
 
-注意在写入 index block 数据的时候先调用了 FindShortestSeparator 函数，其两个参数分别为需要写入 index 的 DataBlock 的最大 key，以及现在的 key。并且最终写入 IndexBlock 中的 key 数据并不是原始的 last_key，而是经过 FindShortestSeparator 处理后的 key。
+注意在写入 index block 数据的时候先调用了 `FindShortestSeparator()` 函数，其两个参数分别为需要写入 index 的 DataBlock 的最大 key，以及现在的 key。并且最终写入 IndexBlock 中的 key 数据并不是原始的 last_key，而是经过 FindShortestSeparator 处理后的 key。
 
 该函数的注释如下解释：
 
