@@ -1,4 +1,4 @@
-# Compction
+# Compaction
 
 LevelDB 的写入和删除都是追加写 WAL，所以需要 Compaction 来删除那些重复的、过期的、待删除的 KV 数据，同时也可以加速读的作用。
 
@@ -25,7 +25,7 @@ LevelDB 在函数 `DBImpl::MaybeScheduleCompaction()` -> `DBImpl::BackgroundComp
 
 
 
-调用 `DBImpl::MaybeScheduleCompaction()` 的地方：
+所有调用 `DBImpl::MaybeScheduleCompaction()` 的地方：
 
 * `DBImpl::Open()` 的时候
 * `DBImpl::Get()` 的时候发现 sstable 的 miss 数量超过阈值（`Version::UpdateStats()`）
@@ -34,53 +34,120 @@ LevelDB 在函数 `DBImpl::MaybeScheduleCompaction()` -> `DBImpl::BackgroundComp
 
 # Minor Compaction
 
+## 触发时机
+
+Write(Put/Delete)、CompactRange、Recovery 以及 compaction 之后都会触发 minor compaction，最频繁触发的操作还是 Write 操作。
+
+## 执行过程
+
 Minor Compaction 由函数 `DBImpl::CompactMemTable()` 完成，主要是两个步骤：
 
 1. 调用 `DBImpl::WriteLevel0Table()` 写入 sstable 文件，同时记录新文件信息到 VersionEdit 中
 2. 生成新的 Version 并更新 Manifest 文件（`VersionSet::LogAndApply()`）
 
-
-
 当 immutable memtable 持久化为 sstable 的时候，大多数情况下都会放在 L0，然后并不是所有的情况都会放在 L0，具体放在哪一层由 `Version::PickLevelForMemTableOutput()` 函数计算。
 
-理论上应该需要将 dump 的 sstable 推至高 level，因为 L0 文件过多会导致**查找耗时增加**以及 **compaction 时内部 IO 消耗严重**；
-
-但是又不能推至太高的 level，因为需要控制查找的次数，而且某些范围的 key 更新频繁时，往高 level compaction **内部 IO 消耗严重**，而且也不易 compaction 到高 level，导致**空间放大严重**。
-
-所以 `Version::PickLevelForMemTableOutput()` 在选择输出到哪个 level 的时候，需要权衡查找效率、compaction IO 消耗以及空间放大，大体策略如下：
+理论上应该需要将 dump 的 sstable 推至高 level，因为 L0 文件过多会导致**查找耗时增加**以及 **compaction 时内部 IO 消耗严重**；但是又不能推至太高的 level，因为需要控制查找的次数，而且某些范围的 key 更新频繁时，往高 level compaction **内部 IO 消耗严重**，而且也不易 compaction 到高 level，导致**空间放大严重**。所以 `Version::PickLevelForMemTableOutput()` 在选择输出到哪个 level 的时候，需要权衡查找效率、compaction IO 消耗以及空间放大，大体策略如下：
 
 1. 最高可推至哪层由 kMaxMemCompactLevel 控制，默认最高 L2。
-2. 如果 dump 成的 sstable 和 L0/L1 有重叠，则放到 L0（`Version::OverlapInLevel()`）
-3. 如果 dump 成的 sstable 和 L2 有重叠且重叠 sstable 总大小超过 10 * max_file_size，则放在 L0
-   因为此时如果放在 L1 会造成 compaction IO 消耗比较大，所以放在 L0，之后和 L1 的 sstable 进行 compaction，减小 sstable 的 key 范围，从而减小下次 compaction 涉及的 sstable 总大小
-4. 如果 dump 成的 sstable 和 L3 有重叠且重叠 sstable 总大小超过 10 * max_file_size，则放在 L1
+2. 如果 dump 成的 sstable 和 L0/L1 有重叠，则放到 L0（`Version::OverlapInLevel()`）。
+3. 如果 dump 成的 sstable 和 L2 有重叠且重叠 sstable 总大小超过 10 * max_file_size，则放在 L0。
+   
+   > 此时如果放在 L1 会造成 compaction IO 消耗比较大，所以放在 L0，之后和 L1 的 sstable 进行 compaction，减小 sstable 的 key 范围，从而减小下次 compaction 涉及的 sstable 总大小。
+4. 如果 dump 成的 sstable 和 L3 有重叠且重叠 sstable 总大小超过 10 * max_file_size，则放在 L1。
 
 # Major Compaction
 
-## Compaction 执行过程
+Major compaction 是 LevelDB compaction 中最复杂的部分，主要包含 size_compaction 和 seek_compaction，会进行重复数据、待删除的数据的清理，减少空间放大，提高读效率。
+
+## Seek Compaction
+
+在 LevelDB 中，每一个新的 sst 文件，都有一个 `allowed_seek` 的初始阈值，表示最多容忍 seek miss 次数，每当 Get miss 的时候都会减 1，当减为 0 的时候标记为需要 compaction 的文件。LevelDB 认为如果一个 key 在 level i 中总是没找到，而是在 level i+1 中找到，这说明两层之间 key 的范围重叠很严重，当这种 seek miss 积累到一定次数之后，就考虑将其从 level i 中合并到 level i+1 中，这样可以避免不必要的 seek miss 消耗 read I/O。其中 allowed_seek 的初始阈值的计算方式为：
+
+```cpp
+/ We arrange to automatically compact this file after
+// a certain number of seeks.  Let's assume:
+//   (1) One seek costs 10ms
+//   (2) Writing or reading 1MB costs 10ms (100MB/s)
+//   (3) A compaction of 1MB does 25MB of IO:
+//         1MB read from this level
+//         10-12MB read from next level (boundaries may be misaligned)
+//         10-12MB written to next level
+// This implies that 25 seeks cost the same as the compaction
+// of 1MB of data.  I.e., one seek costs approximately the
+// same as the compaction of 40KB of data.  We are a little
+// conservative and allow approximately one seek for every 16KB
+// of data before triggering a compaction.
+
+f->allowed_seeks = static_cast<int>((f->file_size / 16384U));
+if (f->allowed_seeks < 100) f->allowed_seeks = 100;
+```
+
+在 Version 中记录了相关的信息：
+
+```cpp
+  // Next file to compact based on seek stats.
+  FileMetaData* file_to_compact_;
+  int file_to_compact_level_;
+```
+
+不过引入了布隆过滤器之后，查找 miss 消耗的 IO 就会小很多，seek compaction 的作用也大大减小。
+
+## Size Compaction
+
+Size Compaction 是 levelDB 的核心 Compact 过程，其主要是为了均衡各个 level 的数据， 从而保证读写的性能均衡。在 Version 中记录了下次需要 compaction 的信息：
+
+```cpp
+  // Level that should be compacted next and its compaction score.
+  // Score < 1 means compaction is not strictly needed.  These fields
+  // are initialized by Finalize().
+  double compaction_score_;
+  int compaction_level_;
+```
+
+**触发条件**
+
+1. 触发得分：在每次写入 sstable 的时候（`VersionSet::LogAndApply()`），levelDB 会计算每个 level 的总的文件大小，并根据此计算出一个 score，最后会根据这个 score 来选择合适 level 和文件进行 Compact，具体得分原则如下（`VersionSet::Finalize()`）：
+
+   * level 0： level 0 的文件总数 / 4
+
+   * 其他 level：当前 level 所有的文件 size 之和 / 此 level 的阈值，Level i 的阈值 (10^i) M （`MaxBytesForLevel()`）
+
+     > 为什么 level 0 采用文件数，而不是文件大小计算 score 的原因：
+     >
+     > 1. With larger write-buffer sizes, it is nice not to do too many level-0 compactions.
+     > 2. The files in level-0 are merged on every read and therefore we wish to avoid too many files when the individual file size is small (perhaps because of a small write-buffer setting, or very high compression ratios, or lots of overwrites/deletions).
+
+2. 当进行 Compation 时，判断上面的得分是否 >1，如果是则进行 Size Compaction（`VersionSet::PickCompaction()`）
+
+## 执行过程
 
 1. 调用 `VersionSet::PickCompaction()` 函数获取需要参加 compaction 的 sstable。
 
-2. 如果不是 manual 且可以 TrivialMove，则直接将 sstable 逻辑上移动到下一层。当且仅当 level i 的 sstable 个数为 1，level i+1 的 sstable 个数为 0，且该sstable 与 level i+2 层重叠的总大小不超过10 * max_file_size。
+2. 如果不是 manual 且可以 TrivialMove，则直接将 sstable 逻辑上移动到下一层。
 
-3. 获取 smallest_snapshot 作为 sequence_number。如果有 snapshot 则使用所有 snapshot 中最小的 sequence_number，否则使用当前 version 的 sequence_number。
+   > **TrivialMove**:
+   >
+   > 当且仅当 level i 的 sstable 个数为 1，level i+1 的 sstable 个数为 0，且该sstable 与 level i+2 层重叠的总大小不超过10 * max_file_size。
+
+3. 获取 smallest_snapshot 作为 sequence_number
+
+   * 如果有 snapshot 则使用所有 snapshot 中最小的 sequence_number
+   * 否则使用当前 version 的 sequence_number。(`DBImpl::DoCompactionWork()`)
 
 4. 生成 MergingIterator 对参与 compaction 的 sstable 进行多路归并排序。
 
 5. 依次处理每对 KV，把有效的 KV 数据通过 TableBuilder 写入到 level+1 层的 sstable 中。
 
-6. 1. 期间如果有 immu memtable，则优先执行 minor compaction。
-
+   1. 期间如果有 immu memtable，则优先执行 minor compaction。
    2. 重复的数据直接跳过，具体细节处理如下：
-
-   3. 1. 如果有 snapshot，则保留大于 smallest_snapshot 的所有的 record 以及一个小于 smallest_snapshot 的 record。
+      1. 如果有 snapshot，则保留大于 smallest_snapshot 的所有的 record 以及一个小于 smallest_snapshot 的 record。
       2. 如果没有 snapshot，则仅保留 sequence_number 最大的 record。
+   3. ==有删除标记的数据则**判断 level i+2 以上层有没有该数据**，有则保留，否则丢弃==。
 
-   4. ==有删除标记的数据则**判断 level i+2 以上层有没有该数据**，有则保留，否则丢弃==。
+6. `DBImpl::InstallCompactionResults()` 将本次 compaction 产生的 VersionEdit 调用 `VersionSet::LogAndApply()` 写入到 Manifest 文件中，期间会创建新的Version 成为 Current Version。
 
-7. `InstallCompactionResults()` 将本次 compaction 产生的 VersionEdit 调用 `VersionSet::LogAndApply()` 写入到 Manifest 文件中，期间会创建新的Version 成为 Current Version。
-
-8. `CleanupCompaction()`以及调用 `DeleteObsoleteFiles()` 删除不属于任何 version 的 sstable 文件以及 WAL、Manifest 文件。
+7. `DBImpl::CleanupCompaction()` 以及调用 `DBImpl::DeleteObsoleteFiles()` 删除不属于任何 version 的 sstable 文件以及 WAL、Manifest 文件。
 
 ```cpp
   while (input->Valid() && !shutting_down_.load(std::memory_order_acquire)) {
@@ -149,9 +216,7 @@ Minor Compaction 由函数 `DBImpl::CompactMemTable()` 完成，主要是两个�
   }
 ```
 
-
-
-**关于 MergingIterator**：
+### MergingIterator
 
 MergingIterator 接受多个 Iter 作为输入，最终 Next() 输出的是这些 Iter 归并排序后的数据：
 
@@ -211,70 +276,6 @@ MergingIterator 接受多个 Iter 作为输入，最终 Next() 输出的是这�
   assert(num <= space);
   Iterator* result = NewMergingIterator(&icmp_, list, num);
 ```
-
-## Seek Compaction
-
-在 levelDB 中，每一个新的 sst 文件，都有一个 allowed_seek 的初始阈值，表示最多容忍 seek miss 次数，每个调用 Get seek miss 的时候，就会执行减 1（allowed_seek--）。其中 allowed_seek 的初始阈值的计算方式为：
-
-```cpp
-/ We arrange to automatically compact this file after
-// a certain number of seeks.  Let's assume:
-//   (1) One seek costs 10ms
-//   (2) Writing or reading 1MB costs 10ms (100MB/s)
-//   (3) A compaction of 1MB does 25MB of IO:
-//         1MB read from this level
-//         10-12MB read from next level (boundaries may be misaligned)
-//         10-12MB written to next level
-// This implies that 25 seeks cost the same as the compaction
-// of 1MB of data.  I.e., one seek costs approximately the
-// same as the compaction of 40KB of data.  We are a little
-// conservative and allow approximately one seek for every 16KB
-// of data before triggering a compaction.
-
-f->allowed_seeks = static_cast<int>((f->file_size / 16384U));
-if (f->allowed_seeks < 100) f->allowed_seeks = 100;
-```
-
-LevelDB 认为如果一个 sst 文件在 level i 中总是没找到，而是在 level i+1 中找到，这说明两层之间 key 的范围重叠很严重。当这种 seek miss 积累到一定次数之后，就考虑将其从 level i 中合并到 level i+1 中，这样可以避免不必要的 seek miss 消耗 read I/O。
-
-
-
-在 Version 中记录了相关的信息：
-
-```cpp
-  // Next file to compact based on seek stats.
-  FileMetaData* file_to_compact_;
-  int file_to_compact_level_;
-```
-
-## Size Compaction
-
-Size Compaction 是 levelDB 的核心 Compact 过程，其主要是为了均衡各个 level 的数据， 从而保证读写的性能均衡。
-
-在 Version 中记录了下次需要 compaction 的信息：
-
-```cpp
-  // Level that should be compacted next and its compaction score.
-  // Score < 1 means compaction is not strictly needed.  These fields
-  // are initialized by Finalize().
-  double compaction_score_;
-  int compaction_level_;
-```
-
-**触发条件**
-
-1. 触发得分：在每次写入 sstable 的时候（`VersionSet::LogAndApply()`），levelDB 会计算每个 level 的总的文件大小，并根据此计算出一个 score，最后会根据这个 score 来选择合适 level 和文件进行 Compact，具体得分原则如下（`VersionSet::Finalize()`）：
-
-   * level 0： level 0 的文件总数 / 4
-
-   * 其他 level：当前 level 所有的文件 size 之和 / 此 level 的阈值，Level i 的阈值 (10^i) M （`MaxBytesForLevel()`）
-
-     > 为什么 level 0 采用文件数，而不是文件大小计算 score 的原因：
-     >
-     > 1. With larger write-buffer sizes, it is nice not to do too many level-0 compactions.
-     > 2. The files in level-0 are merged on every read and therefore we wish to avoid too many files when the individual file size is small (perhaps because of a small write-buffer setting, or very high compression ratios, or lots of overwrites/deletions).
-
-2. 当进行 Compation 时，判断上面的得分是否 >1，如果是则进行 Size Compaction（`VersionSet::PickCompaction()`）
 
 ## Pick SSTable
 
@@ -351,3 +352,8 @@ Size Compaction 是 levelDB 的核心 Compact 过程，其主要是为了均衡�
 
 # Manual Compaction
 
+
+
+# Links
+
+1. https://zhuanlan.zhihu.com/p/360345923

@@ -38,13 +38,13 @@ write 的主要步骤如下：
 
 4. 如果自己就是队列中的第一个元素；或者因为一批写入的数量有限制，被唤醒的时候自己可能没有被写入，但是现在是队列第一个元素，自己需要作为 leader 进行批量写
 
-5. 判断是否可以直接写或者需要生成新的 mem_table 或是刷 imm_memtable（`MakeRoomForWrite()`）
+5. ⭐️判断是否可以直接写或者需要生成新的 mem_table 或是刷 imm_memtable（`DBImpl::MakeRoomForWrite()`）
 
-   1. 如果 LEVEL 0 的文件数目超过了 8 (`kL0_SlowdownWritesTrigger`)，则 sleep 进行 delay（该 delay 只会发生一次）
-   2. 如果当前 memtable 的 size 未达到阈值 write_buffer_size (默认 4MB)，则允许这次写
-   3. 如果当前 memtable 的 size 已经达到阈值，但 immutable memtable 仍存在，则等待 compact 将其 dump 完成
-   4. 如果 LEVEL 0 的文件数目达到 12 (`kL0_StopWritesTrigger`) 阈值，则等待 compact memtable 完成
-   5. 上述条件都不满足，则是 memtable 已经写满，并且 immutable memtable 不存在，则将当前 memtable 置为 immutable memtable，生成新的 memtable 和 log file，主动触发 compact， 允许该次写
+   1. 如果 LEVEL 0 的文件数目超过了 8 (`kL0_SlowdownWritesTrigger`)，则 sleep 进行 delay（该 delay 只会发生一次）；
+   2. 如果当前 memtable 的 size 未达到阈值 write_buffer_size (默认 4MB)，则允许这次写；
+   3. 如果当前 memtable 的 size 已经达到阈值，但 immutable memtable 仍存在，则等待 compact 将其 dump 完成；
+   4. 如果 LEVEL 0 的文件数目达到 12 (`kL0_StopWritesTrigger`) 阈值，则等待 compact memtable 完成；
+   5. 上述条件都不满足，则是 memtable 已经写满，并且 immutable memtable 不存在，则将当前 memtable 置为 immutable memtable，生成新的 memtable 和 log file，主动触发 compact， 允许该次写；
 
 6. 从当前待写队列中取出 Writer，然后用 Writer 中的 WriteBatch 构建新的 WriteBatch，最终的 WriteBatch 有大小限制（`BuildBatchGroup()`）
 
@@ -52,11 +52,11 @@ write 的主要步骤如下：
 
 8. 将 WriteBatch 中的数据写到 log（`Log::AddRecord()`）
 
-9. 将 WriteBatch 应用在 memtable 上。（`WriteBatchInternal::InsertInto()`），即遍历 decode 出 WriteBatch 中的 key/value/ValueType，根据 ValueType 对 memetable 进行 put/delete 操作
+9. 将 WriteBatch 应用在 memtable 上（`WriteBatchInternal::InsertInto()`），即遍历 decode 出 WriteBatch 中的 key/value/ValueType，根据 ValueType 对 memetable 进行 put/delete 操作。
 
-10. 更新 `Version::SequnceNumber`（`last_sequnce + WriteBatch::count()`）
+10. 更新 `Version::SequnceNumber`（`last_sequnce + WriteBatch::count()`）。
 
-11. 唤醒当前已经写入完成的 Writer，如果这一批没有把队列中的所有数据写完，还要唤醒队列中第一个 Writer
+11. 唤醒当前已经写入完成的 Writer，如果这一批没有把队列中的所有数据写完，还要唤醒队列中第一个 Writer。
 
 ### WriteBatch
 
