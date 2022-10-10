@@ -1,6 +1,6 @@
 上一篇文章中提到 bthread 的两个重要特性，分别是：work stealing 和 butex，work stealing 使得 bthread 能够更快地被调度到更多的核心上，充分利用多核。接下来我们从 bthread 的入口函数一路跟踪到任务的执行流程，了解 bthread 的任务调度逻辑。
 # bthread 入口
-bthread 有两个入口函数： `bthread_start_background()` 和 `bthread_start_urgent()` ，后者用于 urgent 的场景，bthread 会立即执行；前者更常用，我们主要从其入手。
+bthread 有两个入口函数： `bthread_start_background()` 和 `bthread_start_urgent()` ，后者用于 urgent 的场景，bthread 会立即执行；前者更常用，我们主要从前者入手。
 
 `bthread_start_background()` 逻辑很简单：
 
@@ -25,8 +25,8 @@ int bthread_start_background(bthread_t* __restrict tid,
 ```
 这里是否有 _thread local_ 的 TaskGroup 实际上对应了两种情况：
 
-1. 无 thread local 的 TaskGroup 对象：==在 bthread 外部（pthread 中）调用 `bthread_start_background()` 创建一个 bthread==。
-1. 有 thread local 的 TaskGroup 对象：==在 bthread 内部创建 bthread，对应的场景是我们在 bthread 任务 `fn` 中又调用 `bthread_start_background()` 创建了一个 bthread，这种情况下获取到的 TaskGroup 对象就是当前 bthread 运行在的 TaskGroup==。
+1. 无 thread local 的 TaskGroup 对象：==在 bthread Worker 外部（pthread 中）调用 `bthread_start_background()` 创建一个 bthread==。
+1. 有 thread local 的 TaskGroup 对象：==在 bthread Worker 内部创建 bthread，对应的场景是我们在 bthread 任务 `fn` 中又调用 `bthread_start_background()` 创建了一个 bthread，这种情况下获取到的 TaskGroup 对象就是当前 bthread 运行在的 TaskGroup==。
 
 
 
@@ -98,7 +98,7 @@ int TaskGroup::start_background(bthread_t* __restrict th,
 > 	这里的 TaskMeta 并不是 new 出来的，而是 `butil::get_resource(&slot)` 从资源池中拿的，bthread 的创建是非常频繁的，如果每次开启一个 bthread 就 new 一个 TaskMeta，bthread 执行完后就 delete，内存的申请和释放会非常频繁，使用资源池的目的是为了避免频繁地申请和释放内存。
 
 ## bthread::start_from_non_worker()
-函数 `start_from_non_worker()` 首先会拿到全局的 TaskControl （`get_or_new_task_control()`），然后由 TaskControl 随机选取一个 TaskGroup 执行任务（`c->choose_one_group()->start_background<true>()`，这里先忽略 BTHREAD_NOSIGNAL 相关的逻辑）
+函数 `bthread::start_from_non_worker()` 首先会拿到全局的 TaskControl （`bthread::get_or_new_task_control()`），然后由 TaskControl 随机选取一个 TaskGroup 执行任务（`c->choose_one_group()->start_background<true>()`，这里先忽略 BTHREAD_NOSIGNAL 相关的逻辑）
 ```cpp
 __thread TaskGroup* tls_task_group_nosignal = NULL;
 
@@ -191,7 +191,7 @@ inline TaskControl* get_or_new_task_control() {
 }
 ```
 ### TaskControl::init()
-TaskControl 的初始化实际上是创建了 `concurrency` 个 pthread，每个 pthread 的回调函数都是 `TaskControl::worker_thread()` 。
+TaskControl 的初始化实际上是创建了 concurrency（默认是 CPU 核数 + 8）个 pthread，每个 pthread 的回调函数都是 `TaskControl::worker_thread()` 。
 ```cpp
 // file: task_control.cpp
 

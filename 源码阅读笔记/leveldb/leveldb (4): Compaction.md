@@ -277,63 +277,67 @@ MergingIterator 接受多个 Iter 作为输入，最终 Next() 输出的是这�
   Iterator* result = NewMergingIterator(&icmp_, list, num);
 ```
 
-## Pick SSTable
+## Pick SSTable⭐️
 
 选取哪些 sstable 进行 compaction 在 `VersionSet::PickCompaction()` 函数中实现：
 
 1. 选取 level i 上需要 compaction 的文件，即 `Compaction::inputs_[0]`
 
-   1. 对于 SizeCompaction 来说，计算 score 的同时也会记录 compaction_level_ 信息。每个 level 都有一个 string 类型的 compact_pointer 来判断需要从该 level 的那个位置开始 compaction（即上次 compaction 结束的位置），选取 compact_pointer_[level] 的下一个 sstable 作为初始的文件。
+   * 对于 SizeCompaction 来说，计算 score 的同时也会记录 compaction_level_ 信息。每个 level 都有一个 string 类型的 compact_pointer 来判断需要从该 level 的那个位置开始 compaction（即上次 compaction 结束的位置），选取 compact_pointer_[level] 的下一个 sstable 作为初始的文件。
 
-      ```cpp
-          // Pick the first file that comes after compact_pointer_[level]
-          for (size_t i = 0; i < current_->files_[level].size(); i++) {
-            FileMetaData* f = current_->files_[level][i];
-            if (compact_pointer_[level].empty() ||
-                icmp_.Compare(f->largest.Encode(), compact_pointer_[level]) > 0) {
-              c->inputs_[0].push_back(f);
-              break;
-            }
-          }
-          if (c->inputs_[0].empty()) {
-            // Wrap-around to the beginning of the key space
-            c->inputs_[0].push_back(current_->files_[level][0]);
-          }
-      ```
+   ```cpp
+     if (size_compaction) {
+       level = current_->compaction_level_;
+       c = new Compaction(options_, level);
+       
+   		// Pick the first file that comes after compact_pointer_[level]
+       for (size_t i = 0; i < current_->files_[level].size(); i++) {
+         FileMetaData* f = current_->files_[level][i];
+         if (compact_pointer_[level].empty() ||
+             icmp_.Compare(f->largest.Encode(), compact_pointer_[level]) > 0) {
+           c->inputs_[0].push_back(f);
+           break;
+         }
+       }
+       if (c->inputs_[0].empty()) {
+         // Wrap-around to the beginning of the key space
+         c->inputs_[0].push_back(current_->files_[level][0]);
+       }
+   ```
 
-   2. 对于 Seek Compaction 来说，直接记录了需要 Compaction 的文件信息
+   * 对于 Seek Compaction 来说，直接记录了需要 Compaction 的文件信息
 
-      ```cpp
-        } else if (seek_compaction) {
-          level = current_->file_to_compact_level_;
-          c = new Compaction(options_, level);
-          c->inputs_[0].push_back(current_->file_to_compact_);
-      ```
+   ```cpp
+     } else if (seek_compaction) {
+       level = current_->file_to_compact_level_;
+       c = new Compaction(options_, level);
+       c->inputs_[0].push_back(current_->file_to_compact_);
+   ```
 
-   3. 另外，对于 L0 的 compaction，因为文件可能有 Overlap，所以需要把和上面 inputs_[0] 所有有 overlap 的 sstable 加入到待 compaction 的文件列表中
+   * 另外，对于 L0 的 compaction，因为文件可能有 Overlap，所以需要把和上面 inputs_[0] 所有有 overlap 的 sstable 加入到待 compaction 的文件列表中
 
-      ```cpp
-        // Files in level 0 may overlap each other, so pick up all overlapping ones
-        if (level == 0) {
-          InternalKey smallest, largest;
-          GetRange(c->inputs_[0], &smallest, &largest);
-          // Note that the next call will discard the file we placed in
-          // c->inputs_[0] earlier and replace it with an overlapping set
-          // which will include the picked file.
-          current_->GetOverlappingInputs(0, &smallest, &largest, &c->inputs_[0]);
-          assert(!c->inputs_[0].empty());
-        }
-      ```
+   ```cpp
+     // Files in level 0 may overlap each other, so pick up all overlapping ones
+     if (level == 0) {
+       InternalKey smallest, largest;
+       GetRange(c->inputs_[0], &smallest, &largest);
+       // Note that the next call will discard the file we placed in
+       // c->inputs_[0] earlier and replace it with an overlapping set
+       // which will include the picked file.
+       current_->GetOverlappingInputs(0, &smallest, &largest, &c->inputs_[0]);
+       assert(!c->inputs_[0].empty());
+     }
+   ```
 
-   4. 此外，这里修复过一个 bug：https://github.com/google/leveldb/pull/339
+   * 此外，这里修复过一个 bug：https://github.com/google/leveldb/pull/339
 
-      **BUG 的产生**：随着 compaction 的不断进行，在有 snapshot 的情况下，可能会导致每一层中有许多按照 sequence number 排序的 user_key 相同的record，如果这些 record 比较多或者对应的 value 比较大，那么这些 record 就会被分散保存到相邻的 sstable，从而导致把较新的 record compaction 到下层了，但是这些老的 record 还在上层。
+     **BUG 的产生**：随着 compaction 的不断进行，在有 snapshot 的情况下，可能会导致每一层中有许多按照 sequence number 排序的 user_key 相同的record，如果这些 record 比较多或者对应的 value 比较大，那么这些 record 就会被分散保存到相邻的 sstable，从而导致把较新的 record compaction 到下层了，但是这些老的 record 还在上层。
 
-      <img src="https://littleneko.oss-cn-beijing.aliyuncs.com/img/v2-cc40d2b357f0d40da4c6c049da587b9e_1440w.jpg" alt="img" style="zoom: 67%;" />
+     **BUG 修复**：在 `VersionSet::SetupOtherInputs()` 中调用 `VersionSet::AddBoundaryInputs()` 函数添加同层的有和当前选取的 sstable 的 largest_key 的 user_key 相等的其他 sstable 参与 compaction。
 
-      **BUG 修复**：会调用 `VersionSet::AddBoundaryInputs()` 函数添加同层的有和当前选取的 sstable 的 largest_key 的 user_key 相等的其他 sstable 参与 compaction。
+   <img src="https://littleneko.oss-cn-beijing.aliyuncs.com/img/v2-cc40d2b357f0d40da4c6c049da587b9e_1440w.jpg" alt="img" style="zoom: 67%;" />
 
-2. 选取 level i + 1 上需要 compaction 的文件，即 `Compaction::inputs_[1]`
+2. 选取 level i + 1 上需要 compaction 的文件，即 `Compaction::inputs_[1]` 
 
    根据 level i 上选取出的 sstable，确定其 [smallest, largest]，然后选出 level i+1 上与其有重叠的所有 sstable（`VersionSet::SetupOtherInputs()`）
 
@@ -346,13 +350,13 @@ MergingIterator 接受多个 Iter 作为输入，最终 Next() 输出的是这�
 
    在已经选取的 level i+1 的 sstable 数量不变的情况下，尽可能的增加 level i 中参与 compaction 的 sstable 数量，总的参与 compaction 的 sstable 的大小阈值为 25 * max_file_size。
 
-   计算出 level i 和 level i+1 的 [smallest, largest]，然后计算出和 level i 上有哪些 sstable 重叠，如果 level i 上新增的 sstable 不会与 level i+1 上的非compaction 的 sstable 重叠，则加入此次 compaction。（即一次尽可能把更多的 level i 推向 level i + 1）
+   计算出 level i 和 level i+1 的 [smallest, largest]，然后计算出和 level i 上有哪些 sstable 重叠，如果 level i 上新增的 sstable 不会与 level i+1 上的非compaction 的 sstable 重叠，则加入此次 compaction（即一次尽可能把更多的 level i 推向 level i + 1）。
 
    <img src="https://littleneko.oss-cn-beijing.aliyuncs.com/img/v2-4cc6c6694069021a2761fe2faa1f40ea_1440w.jpg" alt="img" style="zoom:67%;" />
 
 # Manual Compaction
 
-
+// TODO
 
 # Links
 
