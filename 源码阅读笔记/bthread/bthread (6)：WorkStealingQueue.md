@@ -24,8 +24,6 @@ worker 把要执行的 bthread 向队列中放，其他 worker 会来 steal，==
 1. **pop 之间不会有并发，pop 和 push 之间也不会有并发，pop 和 steal 之间可能有并发**
 1. **steal 之间，steal 和 push 之间，steal 和 pop 之间都会有并发**
 
-
-
 # 定义和初始化
 ```cpp
 template <typename T>
