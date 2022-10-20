@@ -1,44 +1,266 @@
-比特币脚本
+# 交易内容
 
-基于栈的语言
+<img src="https://littleneko.oss-cn-beijing.aliyuncs.com/img/image-20221021002225628.png" alt="image-20221021002225628" style="zoom: 33%;" />
 
-一个交易可以有多个输入，每个输入都要说明来源
-输入脚本：scriptSig
+<img src="https://littleneko.oss-cn-beijing.aliyuncs.com/img/image-20221021002308724.png" alt="image-20221021002308724" style="zoom:33%;" />
 
-输出脚本：scriptPubKey/...
+https://www.blockchain.com/btc/tx/921af728159e3019c18bbe0de9c70aa563ad27f3f562294d993a208d4fcfdd24
 
-ppt todo
-
-===============
-P2PK（Pay to Public Key）
-
-
-P2PKH(Pay to Public Key Hash)
-
-
-P2SH(Pay to Script Hash)
+如图是比特币的一个交易实例，该交易有一个输入两个输出。
 
 
 
-P2SH 用于对多重签名的支持
+```json
+"result": {
+	"txid": "921a...dd24",
+	"hash": "921a...dd24",
+	"version": 1,
+	"size": 226,
+	"locktime": 0,
+	"vin": [...],
+	"vout": [...],
+	"blockhash": "0000000000000000002c510d...5c0b",
+	"confirmations": 23,
+	"time": 1530846727,
+	"blocktime": 1530846727
+}
+```
 
-1. 最早的多重签名（不推荐使用）
-
-问题：使用不方便，比如网上购物，电商使用多重签名，那么需要付款人在 output 中给出 5 个合伙人的公钥，N 和 M，需要商家在网上给出，用户生成转账交易不方便。
-
-2. P2SH 实现多重签名
-output 中只需要给出 赎回 脚本的 hash 就行了
+如图是交易的具体内容，首先看交易的一些宏观信息。locktime 用来设定交易的生效时间，此处的 0 表示立即生效。绝大多数情况下都是 0，如果是非零值，那么该交易要过一段时间才能生效。
 
 
-Proof of Burn 脚本类型
-return false，output 永远不可能执行成功，这个钱永远花不出去
-销毁比特币的方法
+
+```json
+"vin": [{
+	"txid": "c0cb...c57b",
+	"vout": 0,
+	"scriptSig": {
+    "asm": "3045...0018",
+		"hex": "4830...0018"
+	},
+}],
+```
+
+上面是交易的输入，一个交易可以有多个输入，在这个例子中只有一个输入。
+
+* txid：之前交易的哈希值
+
+* vout：txid 这个交易里的第几个输出。所以这里表示花的币来自于哈希值为 c0cb...c57b 的交易中第 0 个输出。
+* scriptSig：输入脚本，输入脚本最简单的形式就是给出 signification 就行了，证明你有权利花这个钱。
+
+如果一个交易有多个输入，每个输入都要说明币的来源，并且要给出签名，也就是说比特币中的一个交易可能需要多个签名。
+
+
+
+```json
+"vout": [{
+	"value": 0.22684000,
+	"n": 0,
+	"scriptPubKey": {
+		"asm": "DUP HASH160 628e...d743 EQUALVERIFY CHECKSIG",
+		"hex": "76a9...88ac",
+		"reqSigs": 1,
+		"type": "pubkeyhash",
+		"addresses": [ "19z8LJkNXLrTv2QK5jgTncJCGUEEfpQvSr"]
+	}
+},{
+	"value": 0.53756644,
+	"n": 1,
+	"scriptPubKey": {
+		"asm": "DUP HASH160 da7d...2cd2 EQUALVERIFY CHECKSIG",
+		"hex": "76a9...88ac",
+		"reqSigs": 1,
+		"type": "pubkeyhash",
+		"addresses": ["1LvGTpdyeVLcLCDK2m9f7Pbh7zwhs7NYhX"]
+	}
+}],
+```
+
+如图是交易的输出，也是一个数组结构，该例子中有两个输出。
+
+* value 是输出的金额，就是给对方转多少钱，单位是比特币，即 0.22684 个比特币。还有的单位是 satoshi（一聪），是比特币中最小的单位。1 BTC=10^8 Satoshi。
+* n 是序号，表示这是这个交易里的第几个输出。
+* scriptPubKey 是输出脚本，后面都写成 output script。输出脚本最简单的形式就是给出一个 pubkey。下面 asm 是输出脚本的内容，里面包含一系列的操作，在后面会详细解释。
+* reqSigs 表示这个输出需要多少个签名才能兑现，这两个例子中都是只需要一个签名。
+* type 是输出的类型，这两个例子类型都是 pubkeyhash，是公钥的哈希。
+* addresses 是输出的地址。
+
+
+
+# 输入输出脚本
+
+<img src="https://littleneko.oss-cn-beijing.aliyuncs.com/img/image-20221021003758946.png" alt="image-20221021003758946" style="zoom:25%;" />
+
+
+
+如图是展示输入和输出脚本是怎样执行的，在区块链第二个区块里有 A -> B 的转账交易，B 收到转来的钱后，又隔了两个区块，把币又转给了 C。所以 B -> C 交易的 txid、vout 是指向 A -> B 交易的输出。而要验证交易的合法性，是要把 B -> C 的输入脚本跟 A -> B 交易的输出脚本拼接在一起执行。
+
+这里有个交叉，前面交易的输出脚本放在后面，后面交易的输入脚本放在前面。在早期的比特币实践中，这两个脚本是拼接在一起，从头到尾执行一遍。后来出于安全因素的考虑，这两个脚本改为分别执行。首先执行输入脚本，如果没有出错就再执行输出脚本。如果能顺利执行，最后栈顶的结果为非零值，也就是true，那么验证通过，这个交易就是合法的。如果执行过程中出现任何错误，这个交易就是非法的。如果一个交易有多个输入的话，那么每个输入脚本都要和所对应的交易的输出脚本匹配之后来进行验证。全都验证通过了，这个交易才是合法的。
+
+
+
+## P2PK (Pay to Public Key)
+
+* **input script**:
+  	PUSHDATA(Sig)
+* **output script**:
+  	PUSHDATA(PubKey)
+  	CHECKSIG
+
+输出脚本里直接给出收款人的公钥，下面一行 CHECKSIG，是检查签名的操作。在输入脚本里，直接给出签名就行了。==这个签名是用私钥对输入脚本所在的整个交易的签名==。这种形式是最简单的，因为公钥是直接在输出脚本里给出的。
+
+> **Tips**：
+>
+> 当 B 想要花 TX:A->B 这个交易 output 中的 BTC 的时候，它需要提供 input script，即用 B 的私钥对 TX:B->C 这个交易的签名，因为==只有用 B 的私钥的签名，才能被 output script 中的 PubKey 验证通过==，所以能确认确实是 B 本人操作的。
+
+
+
+## P2PKH (Pay to Public Key Hash)
+
+* **input script**:
+
+  ​	PUSHDATA(Sig)
+
+  ​	PUSHDATA(PubKey)
+
+* **output script**:
+
+  ​	DUP
+  ​	HASH160
+  ​	PUSHDATA(PubKeyHash)
+  ​	EQUALVERIFY
+  ​	CHECKSIG
+
+P2PKH (pay to public key hash)，跟第一种区别是输出脚本里没有直接给出收款人的公钥，给出的是公钥的哈希。公钥是在输入脚本里给出的。输入脚本既要给出签名，也要给出公钥。输出脚本里还有一些其他操作，DUP、HASH160 等等，这些操作都是为了验证签名的正确性。P2PKH 是最常用的形式。
+
+
+
+执行过程：
+
+<img src="https://littleneko.oss-cn-beijing.aliyuncs.com/img/image-20221021005550864.png" alt="image-20221021005550864" style="zoom:25%;" />
+
+第 5 行是把输出脚本里提供的公钥的哈希值压入栈。这个时候栈顶有两个哈希值，上面的哈希值是输出脚本里面提供的，收款人公钥的哈希，即我发布交易时，转账的钱是转给谁的，在输出脚本里提供一个收款人的公钥的哈希。下面的哈希是指你要花这个钱时在输入脚本里给出的公钥，然后前面的操作 HASH160 是取哈希后得到的。倒数第 2 行操作的作用是弹出栈顶的两个元素，比较是否相等，即比较其哈希值是否相等。这样做的目的是防止有人莫名顶替，用自己的公钥冒充收款人的公钥。
+
+## P2SH (Pay to Script Hash)
+
+采用 BIP16 的方案
+
+* **input script**:
+  	...
+
+  ​	PUSHDATA(Sig)
+  ​	...
+
+  ​	PUSHDATA(serialized redeemScript)
+
+* **output script**:
+
+  ​	HASH160
+
+  ​	PUSHDATA(redeemScriptHash)
+
+  ​	EQUAL
+
+
+
+这种形式的输出脚本给出的不是收款人的公钥的哈希，而是收款人提供的一个脚本的哈希，这个脚本叫 redeemscript (==赎回脚本==)。将来花这个钱时输入脚本里要给出 redeemscript 的具体内容，同时还要给出让赎回脚本能够正确运行所需要的签名。
+
+
+
+input script 要给出一些签名（数目不定）及一段序列化的 redeemScript。
+
+验证时分两步：
+
+* 第一步验证这段序列化的 redeemScript 是否与 output script 中的哈希值匹配。
+* 第二步反序列化并执行 redeemScript，配合前边的签名是否可以执行通过。
+
+redeemScript 可以设计成多种形式：
+
+* P2PK
+* P2PKH
+* 多重签名
+
+
+
+### 用 P2SH 实现 P2PK
+
+<img src="https://littleneko.oss-cn-beijing.aliyuncs.com/img/image-20221021010405119.png" alt="image-20221021010405119" style="zoom: 25%;" />
+
+<img src="https://littleneko.oss-cn-beijing.aliyuncs.com/img/image-20221021010541566.png" alt="image-20221021010541566" style="zoom:25%;" />
+
+<img src="https://littleneko.oss-cn-beijing.aliyuncs.com/img/image-20221021010559780.png" alt="image-20221021010559780" style="zoom:25%;" />
+
+到这里第一阶段的验证就算结束了，接下来还要进行第二个阶段的验证。
+
+如图第二个阶段首先要把输入脚本提供的序列化的赎回脚本进行反序列化，然后执行赎回脚本，首先把 public key 压入栈，然后用 checksig 验证输入脚本里给出的签名的正确性。验证痛过之后，整个 pay to script hash 才算执行完成。
+
+<img src="https://littleneko.oss-cn-beijing.aliyuncs.com/img/image-20221021010625738.png" alt="image-20221021010625738" style="zoom:25%;" />
+
+# 多重签名
+
+比特币系统中一个输出可能要求多个签名才能把钱取出来，比如某个公司的账户，可能要求五个合伙人中任意三个人签名才能把公司账户上的钱取走，这样为私钥的泄露提供了一些安全的保护。
+
+## 最早的多重签名（不推荐使用）
+
+<img src="https://littleneko.oss-cn-beijing.aliyuncs.com/img/image-20221021011119852.png" alt="image-20221021011119852" style="zoom:25%;" />
+
+输出脚本里给出 N 个公钥，同时指定一个预值 M。输入脚本只要提供接 N 个公钥对应的签名中任意 M 个合法的签名就能通过验证。
+
+> 输入脚本的第一行有一个红色的“✘”，这是什么意思呢?
+>
+> 比特币中 check multisig 的实现，有一个 bug，执行的时候会从堆栈上多弹出一个元素，这个就是它的代码实现的一个 bug。这个 bug 现在已经没有办法改了，因为这是个去中心化的系统，要想通过软件升级的方法去修复这个 bug 代价是很大的，要改的话需要硬分叉。所以实际采用的解决方案，是在输入脚本里，往栈上多压进去一个没用的元素，第一行的“✘”就是没用的多余的元素。
+
+
+
+问题：使用不方便，比如网上购物，电商使用多重签名，那么需要付款人在 output 中给出 5 个合伙人的公钥、N 和 M，需要商家在网上给出，用户生成转账交易不方便。
+
+那么该如何解决?这里就要用到 pay to script hash。
+
+## P2SH 实现多重签名
+
+<img src="https://littleneko.oss-cn-beijing.aliyuncs.com/img/image-20221021011744355.png" alt="image-20221021011744355" style="zoom:25%;" />
+
+如图是用 pay to script hash 实现的多重签名，它的本质是把复杂度从输出脚本转移到了输入脚本。现在这个输出脚本变得非常简单，只有这三行。原来的复杂度被转移到 redeemscript 赎回脚本里。输出脚本只要给出这个赎回脚本的哈希值就可以了。赎回脚本里要给出这 N 个公钥，还有 N 和 M 的值，这个赎回脚本是在输入脚本里提供的，也就是说是由收款人提供的。
+
+像前面网上购物的例子，收款人是电商，他只要在网站上公布赎回脚本的哈希值，然后用户生成转账交易的时候把这个哈希值包含在输出脚本里就行了。至于这个电商用什么样的多重签名规则，对用户来说是不可见的，用户没必要知道。从用户的角度来看采用这种支付方式跟采用 pay to public key hash 没有多大区别，只不过把公钥的哈希值换成了赎回脚本的哈希值。当然，输出脚本的写法上也有一些区别，但不是本质性的。这个输入脚本是电商在花掉这笔输出的时候提供的，其中包含赎回脚本的序列化版本，同时还包含让这个赎回脚本验证通过所需的M个签名。将来如果这个电商改变了所采用的多重签名规则，比如由五个里选三个变成三个里选两个，那么只要改变输入脚本和赎回脚本的内容，然后把新的哈希值公布出去就行了。对用户来说，只不过是付款的时候，要包含的哈希值发生了变化，其他的变化没有必要知道。
+
+# Proof of Burn
+
+**output script:**
+
+​	RETURN
+​	...[zero or more ops or text]
+
+
+
+包含了这样的 output script 的 output 被称为 Provably Unspendable/Prunable Outputs。
+
+假如有一个交易的 input 指向这个 output，不论 input 里的 input script 如何设计，执行到 RETURN 这个命令之后都会直接返回 false，RETURN 后面的其他指令也就不会执行了，所以==这个 output 无法再被花出去==，对应的 UTXO 也就可以被剪枝了，无需保存。
+
+
+为什么要设计这样的输出脚本呢？这样的输出岂不是永远花不出去吗？确实如此，这个脚本是销毁比特币的一种方法，这个一般有两种应用场景：
 
 1. 小的币要求销毁一定数量的比特币来得到
-2. digital comment：把某些东西的 hash 记录到区块中，到时候证明你在某个时间点已经知道了
+2. 往区块链里写入一些内容，区块链是个不可篡改的账本，有人就利用这个特性往里面添加一些需要永久保存的内容。比如 digital comment，把某些东西的 hash 记录到区块中，证明在某个时间，知道某些事情。
 
-好处是，矿工不需要把这个 output 保存在 UTXO 中
+这个应用场景和 coinbase 域相似。coinbase transaction 里面有个 coinbase 域，在这个域里写什么内容同样是没人管的，那这里为什么不用 coinbase 的方法呢，coinbase 还不用销毁比特币，就可以直接往里写？
+
+原因是 coinbase 的方法只有获得记账权的那个节点才能用。如果是一个全节点，挖矿挖到了，然后发布一个区块，可以往 coinbase transaction 里的 coinbase 域写入一些内容。
+
+而我们说的上述方法，是所有节点都可以用的，甚至不一定是个节点，可能就是一个普通的比特币上的一个用户，任何人都可以用这种方法去写入一些内容。发布交易不需要有记账权，发布区块才需要有记账权。任何用户都可以用这种方法销毁很少的比特币，换取往区块链里面写入一些内容的机会。其实有些交易根本没有销毁比特币，只不过支付了交易费。
 
 
-非图灵完备，不支持循环，不会有停机问题
-eth 的脚本是图灵完备的，所以使用汽油费来限制脚本的执行
+
+这个交易有两个输出，第一个输出的脚本是正常的 pay to public key hash，输出的金额就是得到的 block reward 加上 transaction fee。第二个输出的金额是 0，输出脚本就是刚才提到的格式：开头是 return，后面跟了一些乱七八糟的内容，第二个输出的目的就是为了往区块链里写一些东西。
+
+<img src="https://littleneko.oss-cn-beijing.aliyuncs.com/img/image-20221021012930599.png" alt="image-20221021012930599" style="zoom:25%;" />
+
+这个交易并没有销毁任何比特币，0.05 BTC 全部给了矿工作为手续费。好处是，矿工不需要把这个 output 保存在 UTXO 中。
+
+<img src="https://littleneko.oss-cn-beijing.aliyuncs.com/img/image-20221021012955048.png" alt="image-20221021012954169" style="zoom:25%;" />
+
+
+
+比特币脚本语言非图灵完备，不支持循环，不会有停机问题。
+
+ETH 的脚本是图灵完备的，所以使用汽油费 (gas) 来限制脚本的执行
