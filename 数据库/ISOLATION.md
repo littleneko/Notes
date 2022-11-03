@@ -3,9 +3,9 @@
 
 - **well-formed**: 事务中所有的 READ、WRITE、UNLOCK 操作都由锁覆盖，并且锁最终会 UNLOCK
 - **two-phase**: 一个事务所有的 LOCK 操作都在 UNLOCK 操作之前
-- **串行调度 (Serial History)**: 一次一个事物
+- **串行调度 (Serial History)**: 一次一个事务
 - **合法调度**: 同一时间没有发生两个不同事务的锁冲突
-- **冲突 (conflict)**: 不同事物操作同一份数据 (a row, a page, ..., a set of data items covered by predicate lock)，其中至少一个操作是 Write
+- **冲突 (conflict)**: 不同事务操作同一份数据 (a row, a page, ..., a set of data items covered by predicate lock)，其中至少一个操作是 Write
 - **等价调度 (equivalent)**: 调度具有相同的依赖图 (dependency graph)
 - **可串行化调度 (serializable，或者称之为隔离调度)**: 调度等价于某个串行调度。
 ## Phenomena
@@ -28,13 +28,13 @@ P1: w1[x]...r2[x]...((c1 or a1) [and (c2 or a2) in any order)]
 A1: w1[x]...r2[x]...(a1 and c2 in any order)
 ```
 ### P2 不可重复读 (Non-RepeatableRead)
-在事物中 T1 读了数据，然后 T2 修改或删除了这份数据，等到 T1 再次读取时发现数据已经被更改了。
+在事务中 T1 读了数据，然后 T2 修改或删除了这份数据，等到 T1 再次读取时发现数据已经被更改了。
 ```
 P2: r1[x]...w2[x]...((c1 or a1) [and (c2 or a2) in any order)]
 A2: r1[x]...w2[x]...c2...r1[x]...c1
 ```
 ### P3 幻读 (Phantom)
-在事物中 T1 读取了满足某个条件的数据，然后 T2 插入了满足该条件的数据，T1 再次读取时发现多了数据。
+在事务中 T1 读取了满足某个条件的数据，然后 T2 插入了满足该条件的数据，T1 再次读取时发现多了数据。
 ```
 P3: r1[P]...w2[y in P]...((c1 or a1) [and (c2 or a2) any order)]
 A3: r1[P]...w2[y in P]...c2...r1[P]...c1

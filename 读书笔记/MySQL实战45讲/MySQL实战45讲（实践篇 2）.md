@@ -374,7 +374,7 @@ A1: 不是，change buffer 是用在普通索引上的，主键索引是唯一�
 1. 大多数的互联网应用场景都是读多写少，因此你负责的业务，在发展过程中很可能先会遇到读性能的问题。而在数据库层==解决读性能问题==，就要涉及到接下来两篇文章要讨论的架构：一主多从。
 1. 没有 GTID 的情况下做故障切换：通过故障时间在新主上找位点，可能会有重复binlog被应用，可以把 slave_skip_errors 设置为“1032（插入数据时唯一键冲突）,1062（删除数据时找不到行）”，这样中间碰到这两个错误时就直接跳过。
 1. GTID格式：GTID=server_uuid:gno。在 MySQL 里面我们说 transaction_id 就是指事务 id，事务 id 是在事务执行过程中分配的，如果这个事务回滚了，事务 id 也会递增，而 gno 是在事务提交的时候才会分配。从效果上看，GTID 往往是连续的，因此我们用 gno 来表示更容易理解。
-1. 可以通过 `set gtid_next='aaaaaaaa-cccc-dddd-eeee-ffffffffffff:10';begin;commit;` 这样的命令来跳过某些事物。
+1. 可以通过 `set gtid_next='aaaaaaaa-cccc-dddd-eeee-ffffffffffff:10';begin;commit;` 这样的命令来跳过某些事务。
 1. GTID 和在线 DDL
 1. 在 GTID 模式下，如果一个新的从库接上主库，但是需要的 binlog 已经没了，要怎么做？
    1. 如果业务允许主从不一致的情况，那么可以在主库上先执行 `show global variables like 'gtid_purged'`，得到主库已经删除的 GTID 集合，假设是 gtid_purged1；然后先在从库上执行 reset master，再执行 `set global gtid_purged ='gtid_purged1'`；最后执行 start slave，就会从主库现存的 binlog 开始同步。binlog 缺失的那一部分，数据在从库上就可能会有丢失，造成主从不一致。
