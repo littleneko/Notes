@@ -160,15 +160,15 @@ Snapshot Isolation 是一种特殊的隔离级别，无法准确的说到底处�
 
 **证明**:
 
-1. first-committer-wins 保证了不会有脏写(P0);
+1. first-committer-wins 保证了不会有脏写 (P0);
 2. timestamp read 保证了不会有脏读 (P1);
-3. 读偏序(A5A)在 READ COMMIT 下会发生，但是在 Snapshot Isolation下不会发生(r1[y]是 timestamp读)
+3. 读偏序 (A5A) 在 READ COMMIT 下会发生，但是在 Snapshot Isolation下不会发生 (r1[y] 是 timestamp 读)
 - **REPEATABLE READ »« Snapshot Isolation**
 
 **证明**:
 
-1. A5B在Snapshot Isolation下会发生，解决P2就不会发生A5B(P2: r1[x]...w2[x])。因此可以 认为REPEATABLE READ > Snapshot Isolation;
-2. Snapshot Isolation下不会发生A3，但是RR隔离级 别下会发生A3。因此可以认为Snapshot Isolation > REPEATABLE READ
+1. A5B 在 Snapshot Isolation 下会发生，解决 P2 就不会发生 A5B(P2: r1[x]...w2[x])。因此可以认为 REPEATABLE READ > Snapshot Isolation;
+2. Snapshot Isolation下不会发生 A3，但是 RR 隔离级别下会发生 A3。因此可以认为 Snapshot Isolation > REPEATABLE READ
 
 **注: Snapshot Isolation下虽然不会发生 A3，但是会出现 P3**
 
@@ -182,15 +182,27 @@ Snapshot Isolation 是一种特殊的隔离级别，无法准确的说到底处�
 | READ COMMITTED == Degree 2  | Not Possible  | Not Possible  | Possible  | Possible  | Possible  | Possible  | Possible  | Possible  |
 | Cursor Stability  | Not Possible  | Not Possible  | Not Possible  | Sometimes Possible  | Sometimes Possible  | Possible  | Possible  | Sometimes Possible  |
 | REPEATABLE READ  | Not Possible  | Not Possible  | Not Possible  | Not Possible  | Not Possible  | Possible  | Not Possible  | Not Possible  |
-| Snapshot  | Not Possible  | Not Possible  | Not Possible  | Not Possible  | Not Possible  | Sometime s Possible  | Not Possible  | Possible  |
-| ANSI SQL SERIALIZABLE == Degree 3 == Repeatable Read Date, IBM, Tandem, ...  | Not Possible  | Not Possible  | Not Possible  | Not Possible  | Not Possible  | NotPossible  | Not Possible  | Not Possible  |
+| Snapshot  | Not Possible  | Not Possible  | Not Possible  | Not Possible  | Not Possible  | Sometimes  Possible | Not Possible  | Possible  |
+| ANSI SQL SERIALIZABLE == Degree 3 == Repeatable Read Date, IBM, Tandem, ...  | Not Possible  | Not Possible  | Not Possible  | Not Possible  | Not Possible  | Not Possible | Not Possible  | Not Possible  |
 
+> **Tips**:
+>
+> 不要将 MySQL 的隔离级别套用到上面的表格中，MySQL 的隔离级别并不严格遵守上表，比如 MySQL 的 RR 隔离级别下：
+>
+> * 幻读：
+>   * 快照读 (SELECT) 不会出现幻读
+>   * 当前读 (SELECT FOR UPDATE/LOCK IN SHARE MODE, UPDATE, DELETE) 会出现幻读
+> * Lost Update：
+>   * 使用原子更新（update set a = a + 1），SELECT FOR UPDATE 后再更新：不会出现 Lost Update
+>   * 直接 SELECT（快照读）然后更新：会出现 Lost Update
+> * 写偏序：Possible，理由同上
 
 ## Q&A
+
 **Q1**: RR 为什么不会有 A5A 和 A5B?
 **A1**: P2: r1[x]...w2[x]...((c1 or a1) 已经保证了不会发生 A5A 和 A5B; 
 
-**Q2**: Snapshot 下为什么不会新出现 A5A 但会出现 A5B? 
+**Q2**: Snapshot 下为什么不会出现 A5A 但会出现 A5B? 
 **A2**: 不会出现 A5A 是因为 Snapshot 读的都是事务开始时的快照，会出现 A5B 是因为修改仍然是基于最开始读取的值。 
 
 **Q3**: Snapshot 下为什么会出现 P3 
