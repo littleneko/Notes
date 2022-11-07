@@ -190,8 +190,9 @@ Snapshot Isolation 是一种特殊的隔离级别，无法准确的说到底处�
 > 不要将 MySQL 的隔离级别套用到上面的表格中，MySQL 的隔离级别并不严格遵守上表，比如 MySQL 的 RR 隔离级别下：
 >
 > * 幻读：
->   * 快照读 (SELECT) 不会出现幻读
->   * 当前读 (SELECT FOR UPDATE/LOCK IN SHARE MODE, UPDATE, DELETE) 会出现幻读
+>   * 快照读 (SELECT) ：不会出现幻读，由 MVCC 保证
+>   * 当前读 (SELECT FOR UPDATE/LOCK IN SHARE MODE, UPDATE, DELETE)：不会出现幻读，由 Next-Key Lock 保证
+>   * 两者混用，SELECT -> 其他事务写入并提交 -> UPDATE -> SELECT：由于第二个 UPDATE 是当前读，会更新到其他事务写入并提交的数据，然后再次使用 SELECT 快照读的时候会读到自己更新过的数据，出现幻读
 > * Lost Update：
 >   * 使用原子更新（update set a = a + 1），SELECT FOR UPDATE 后再更新：不会出现 Lost Update
 >   * 直接 SELECT（快照读）然后更新：会出现 Lost Update

@@ -6,7 +6,7 @@
 1. **Change Buffer**：当需要更新（INSERT、UPDATE、DELETE）一个数据页时，如果数据页在内存中就直接更新，==而如果这个**数据页还没有在内存中**的话，在不影响数据一致性的前提下，InnoDB 会将这些更新操作缓存在 change buffer 中，这样就不需要从磁盘中读入这个数据页了==。
 1. ==**change buffer 在内存中有拷贝，也会被写入到磁盘上**==。change Buffer 和数据页一样，也是物理页的一个组成部分，数据结构也是一颗 **B+ 树**，这棵B+树放在共享表空间中，默认 ibdata1 中
 1. 将 change buffer 中的操作应用到原数据页，得到最新结果的过程称为 merge。除了访问这个数据页会触发 merge 外，系统有后台线程会定期 merge
-1. Change Buffer 的好处：减少读磁盘（随机IO），语句的执行速度会得到明显的提升；避免占用过多 Buffer Pool 内存，提高内存利用率。使用`innodb_change_buffer_max_size` 设置大小，表示占用 Buffer Pool 的比例
+1. Change Buffer 的好处：减少读磁盘（随机 IO），语句的执行速度会得到明显的提升；避免占用过多 Buffer Pool 内存，提高内存利用率。使用`innodb_change_buffer_max_size` 设置大小，表示占用 Buffer Pool 的比例
 1. ==**唯一索引的更新就不能使用 change buffer，实际上也只有普通索引可以使用**==
 1. **Change Buffer 优化起作用的场景**
    1. 对于==**写多读少**==的业务来说，页面在写完以后马上被访问到的概率比较小，此时 change buffer 的使用效果最好。这种业务模型常见的就是账单类、日志类的系统
@@ -50,7 +50,7 @@ A3: 不会丢失，虽然是只更新内存，但是在事务提交的时候，�
 1. 索引统计只是一个输入，对于一个具体的语句来说，优化器还要判断，执行这个语句本身要扫描多少行，即==**需要统计回表的代价**==。
 1. 解决MySQL索引选择错误的问题：
    1. force index
-   1. 修改SQL语句，引导MySQL使用我们期望的索引
+   1. 修改 SQL 语句，引导 MySQL 使用我们期望的索引
    1. 新建一个更合适的索引或者删掉误用的索引
 
 
@@ -64,7 +64,7 @@ A3: 不会丢失，虽然是只更新内存，但是在事务提交的时候，�
 1. ==**前缀索引无法使用覆盖索引**==
 1. 对于前缀区分度不大的情况（两种方法都**不支持范围查询**）：
    1. 可以使用**倒序存储**，查询时使用 `reverse` 函数
-   1. 添加一个hash字段，在hash值上建索引
+   1. 添加一个 hash 字段，在 hash 值上建索引
 
 
 
@@ -178,13 +178,13 @@ A1: 1. 这个表，本身就已经没有空洞的了；2. 在 DDL 期间，如�
 
    <img src="https://littleneko.oss-cn-beijing.aliyuncs.com/img/1586190090676-eb45343d-41c8-49ba-aab7-3183fceec1d8.png" alt="image.png" style="zoom:50%;" />
 
-      1. 时刻A：事务回滚
+      1. 时刻 A：事务回滚
 
-      1. 时刻B：事务提交，因为 redolog 处于 prepare 且 binlog 完整
+      1. 时刻 B：事务提交，因为 redolog 处于 prepare 且 binlog 完整
 
 2. MySQL 如何判断 binlog 完整：XID event
 2. redo log 和 binlog 是怎么关联起来的：XID
-2. 时刻B的事务为什么需要提交：为了保证主备一致
-2. 为什么需要两阶段：假设先提交redo再写binlog，如果binlog写入失败，主备会不一致
+2. 时刻 B 的事务为什么需要提交：为了保证主备一致
+2. 为什么需要两阶段：假设先提交 redo 再写 binlog，如果 binlog 写入失败，主备会不一致
 2. ==**为什么不能只用 binlog 来实现 crash recovery**：**binlog 没有能力恢复“数据页”**==
 2. 能否只用 redo 来实现 crash recovery：如果只从崩溃恢复的角度来讲是可以的。你可以把 binlog 关掉，这样就没有两阶段提交了，但系统依然是 crash-safe 的
