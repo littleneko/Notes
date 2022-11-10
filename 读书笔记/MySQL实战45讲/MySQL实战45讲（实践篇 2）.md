@@ -401,11 +401,7 @@ A1: 不是，change buffer 是用在普通索引上的，主键索引是唯一�
    新增了一个参数 binlog-transaction-dependency-tracking，用来控制是否启用这个新策略。这个参数的可选值有以下三种。
 
       - **COMMIT_ORDER**，表示的就是前面介绍的，根据同时进入 prepare 和 commit 来判断是否可以并行的策略。
-
-
       - ==**WRITESET，表示的是对于事务涉及更新的每一行，计算出这一行的 hash 值，组成集合 writeset。如果两个事务没有操作相同的行，也就是说它们的 writeset 没有交集，就可以并行。**==
-
-
       - **WRITESET_SESSION**，是在 WRITESET 的基础上多了一个约束，即在主库上同一个线程先后执行的两个事务，在备库执行的时候，要保证相同的先后顺序。
 
 
@@ -430,14 +426,17 @@ A1: 不是，change buffer 是用在普通索引上的，主键索引是唯一�
 
    在上面的例子中，last_committed = 1的事务可以和 last_committed = 0 的事务同时并行执行，因为事务有重叠。具体来说，这表示 last_committed = 0 的事务进入到 COMMIT 阶段时，last_committed 的事务进入到了 PREPARE 阶段，即事务间依然没有冲突。具体实现思想可见官方的 Worklog： [**WL#7165: MTS: Optimizing MTS scheduling by increasing the parallelization window on master**](https://dev.mysql.com/worklog/task/?id=7165)
 
-   ==**实际上经过这个优化后，binlog 中的 last_commited 不再是记录的上一组的 leader 的 id，而是该事务进入 prepare 阶段时系统中已经 commmit 事务的最大 id，在从库上回放时，last_commited 事务 commit 后本事务就可以开始回放了。**==
+   ==**实际上经过这个优化后，binlog 中的 last_commited 不再是记录的上一组的 leader 的 id，而是该事务进入 prepare 阶段时系统中已经 commmit 事务的最大 sequence，在从库上回放时，last_commited 事务 commit 后本事务就可以开始回放了。**==
 
-   因为小于等于 last_commited 的事务与本事务没有重叠，不能确定是否有冲突，不能并行回放；而 last_commited + 1 的事务与本事务是有重叠的，因为本事务进入到 Prepare 阶段的时候这个事务还没有 Commit，一定不会有冲突。
-
+   > **TIPS**:
+   >
+   > * 小于等于 last_commited 的事务与本事务没有重叠，不能确定是否有冲突，不能并行回放；而 last_commited + 1 的事务与本事务是有重叠的，因为本事务进入到 Prepare 阶段的时候这个事务还没有 Commit，一定不会有冲突。
+   > * 注意 last_commited 是 sequence_number，不是事务 id，因此一定是按提交顺序编号的。上面的图画得有误导性，事务 id 与 sequence_number 一样递增了，实际上事务提交顺序和事务 id 大小没有任何关系。
    
-
+   
+   
    **WL#7165: MTS: Optimizing MTS scheduling by increasing the parallelization window on master**
-
+   
    ```
        Trx1 ------------P----------C-------------------------------->
                                    |
@@ -454,15 +453,15 @@ A1: 不是，change buffer 是用在普通索引上的，主键索引是唯一�
        Trx7 -----------------------+---+-----+----+---+-P-+--C------->
                                    |   |     |    |   |   |  |
    ```
-
+   
    如果按照组提交并行：
-
+   
    * Trx5 and Trx6 are allowed to execute in parallel because they have the same commit-parent (namely, the counter value set by Trx2). 
    * Trx4 and Trx5 are not allowed to execute in parallel
    * Trx6 and Trx7 are not allowed to execute in parallel.
-
+   
    但是：
-
+   
    * Trx4, Trx5, and Trx6 hold all their locks at the same time but Trx4 will be executed in isolation.
    * Trx6 and Trx7 hold all their locks at the same time but Trx7 will be executed in isolation.
 
@@ -471,8 +470,8 @@ A1: 不是，change buffer 是用在普通索引上的，主键索引是唯一�
 
 
 1. 大多数的互联网应用场景都是读多写少，因此你负责的业务，在发展过程中很可能先会遇到读性能的问题。而在数据库层==解决读性能问题==，就要涉及到接下来两篇文章要讨论的架构：一主多从。
-1. 没有 GTID 的情况下做故障切换：通过故障时间在新主上找位点，可能会有重复binlog被应用，可以把 slave_skip_errors 设置为“1032（插入数据时唯一键冲突）,1062（删除数据时找不到行）”，这样中间碰到这两个错误时就直接跳过。
-1. GTID格式：GTID=server_uuid:gno。在 MySQL 里面我们说 transaction_id 就是指事务 id，事务 id 是在事务执行过程中分配的，如果这个事务回滚了，事务 id 也会递增，而 gno 是在事务提交的时候才会分配。从效果上看，GTID 往往是连续的，因此我们用 gno 来表示更容易理解。
+1. 没有 GTID 的情况下做故障切换：通过故障时间在新主上找位点，可能会有重复 binlog 被应用，可以把 slave_skip_errors 设置为“1032（插入数据时唯一键冲突）,1062（删除数据时找不到行）”，这样中间碰到这两个错误时就直接跳过。
+1. GTID 格式：GTID=server_uuid:gno。在 MySQL 里面我们说 transaction_id 就是指事务 id，事务 id 是在事务执行过程中分配的，如果这个事务回滚了，事务 id 也会递增，而 gno 是在事务提交的时候才会分配。从效果上看，GTID 往往是连续的，因此我们用 gno 来表示更容易理解。
 1. 可以通过 `set gtid_next='aaaaaaaa-cccc-dddd-eeee-ffffffffffff:10';begin;commit;` 这样的命令来跳过某些事务。
 1. GTID 和在线 DDL
 1. 在 GTID 模式下，如果一个新的从库接上主库，但是需要的 binlog 已经没了，要怎么做？
@@ -495,22 +494,22 @@ A1: 不是，change buffer 是用在普通索引上的，主键索引是唯一�
    1. 配合 semi-sync 方案；
    1. 等主库位点方案；
    1. 等 GTID 方案。
-   
+
 2. ==判断主备无延迟方案==
-   
+
    1. seconds_behind_master == 0（只能精确到秒）
    1. 如果 Master_Log_File 和 Relay_Master_Log_File、Read_Master_Log_Pos 和 Exec_Master_Log_Pos 这两组值完全相同，就表示接收到的日志已经同步完成。
    1. Retrieved_Gtid_Set 和 Executed_Gtid_Set 相同
-   
+
 3. 上面三种判断主备无延迟的方案都不精确：我们上面判断主备无延迟的逻辑，是==“备库收到的日志都执行完成了”。但是，**从 binlog 在主备之间状态的分析中，不难看出还有一部分日志，处于客户端已经收到提交确认，而备库还没收到日志的状态**==。
 
     <img src="https://littleneko.oss-cn-beijing.aliyuncs.com/img/1599152760459-34dcc172-9edd-485e-a239-05edc94537d8.png" alt="image.png" style="zoom: 80%;" />
 
 4. 解决上面问题的方法：**semi-sync replication**
 
-4. ⭐实际上，回到我们最初的业务逻辑里，当发起一个查询请求以后，我们要得到准确的结果，其实并==**不需要等到“主备完全同步”**==。
+5. ⭐实际上，回到我们最初的业务逻辑里，当发起一个查询请求以后，我们要得到准确的结果，其实并==**不需要等到“主备完全同步”**==。
 
-​	其实客户端是在发完 trx1 更新后发起的 select 语句，我们只需要确保 trx1 已经执行完成就可以执行 select 语句了。也就是说，如果在状态 3 执行查询请求，得到的就是预期结果了。
+    其实客户端是在发完 trx1 更新后发起的 select 语句，我们只需要确保 trx1 已经执行完成就可以执行 select 语句了。也就是说，如果在状态 3 执行查询请求，得到的就是预期结果了。
 
 <img src="https://littleneko.oss-cn-beijing.aliyuncs.com/img/1599153043842-1a16305b-2b94-43e5-b97a-bd6f09517a4e.png" alt="image.png" style="zoom:50%;" />
 
@@ -525,7 +524,7 @@ A1: 不是，change buffer 是用在普通索引上的，主键索引是唯一�
    
    1. 在从库上执行 ==**select master_pos_wait(File, Position, 1)**==；
    
-   1. 如果返回值是 >=0 的正整数，则在这个从库执行查询语句；
+   1. 如果返回值是大于等于 0 的正整数，则在这个从库执行查询语句；
    
    1. 否则，到主库执行查询语句。
    

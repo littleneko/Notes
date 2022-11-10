@@ -70,7 +70,7 @@ class Transaction {
         for (Write w : secondaries)
             if (!Prewrite(w, primary)) return false;
 
-        int commit_ts = orcle.GetTimestamp();
+        int commit_ts = oracle_.GetTimestamp();
 
         // Commit primary first.
         Write p = primary;
@@ -141,7 +141,7 @@ class Transaction {
 
 由于客户端随时可能故障，导致了事务处理的复杂度（Bigtable 可保证 tablet 服务器故障不影响系统，因为 Bigtable 确保写锁持久存在）。如果一个客户端在一个事务被提交时发生故障，锁将被遗弃。Percolator 必须清理这些锁，否则他们将导致将来的事务被非预期的挂起。Percolator 用一个懒惰的途径来实现清理：当一个事务 A 遭遇一个被事务 B 遗弃的锁，A 可以确定 B 遭遇故障，并清除它的锁。
 
-然而希望 A 很准确的判断出 B 失败是十分困难的；可能发生这样的情况，A 准备清理 B 的事务，而事实上 B 并未故障还在尝试提交事务，我们必须想办法避免。现在就要详细介绍一下上面已经提到过的 “primary” 概念。Percolator 在每个事务中会对任意的提交或者清理操作指定一个 cell 作为同步点。这个 cell 的锁被称之为 “primary锁”。A 和 B 在哪个锁是 primary 上达成一致（primary锁 的位置被写入所有 cell 的锁中）。执行一个清理或提交操作都需要修改 primary 锁；这个修改操作会在一个 Bigtable 行事务之下执行，所以只有一个操作可以成功。特别的，在 B 提交之前，它必须检查它依然拥有 primary 锁，提交时会将它替换为一个写记录。在 A 删除 B 的锁之前，A 也必须检查 primary 锁来保证 B 没有提交；如果 primary 锁依然存在它就能安全的删除 B 的锁。
+然而希望 A 很准确的判断出 B 失败是十分困难的；可能发生这样的情况，A 准备清理 B 的事务，而事实上 B 并未故障还在尝试提交事务，我们必须想办法避免。现在就要详细介绍一下上面已经提到过的 “primary” 概念。Percolator 在每个事务中会对任意的提交或者清理操作指定一个 cell 作为同步点。这个 cell 的锁被称之为 “primary 锁”。A 和 B 在哪个锁是 primary 上达成一致（primary 锁 的位置被写入所有 cell 的锁中）。执行一个清理或提交操作都需要修改 primary 锁；这个修改操作会在一个 Bigtable 行事务之下执行，所以只有一个操作可以成功。特别的，在 B 提交之前，它必须检查它依然拥有 primary 锁，提交时会将它替换为一个写记录。在 A 删除 B 的锁之前，A 也必须检查 primary 锁来保证 B 没有提交；如果 primary 锁依然存在它就能安全的删除 B 的锁。
 
 如果一个客户端在第二阶段提交时崩溃，一个事务将错过提交点（它已经写过至少一个写记录），而且出现未解决的锁。我们必须对这种事务执行 roll-forward。当其他事务遭遇了这个因为故障而被遗弃的锁时，它可以通过检查 primary 锁来区分这两种情况：如果 primary 锁已被替换为一个写记录，写入此锁的事务则必须提交，此锁必须被 roll forward；否则它应该被回滚（因为我们总是先提交 primary，所以如果 primary 没有提交我们能肯定回滚是安全的）。执行 roll forward 时，执行清理的事务也是将搁浅的锁替换为一个写记录。
 

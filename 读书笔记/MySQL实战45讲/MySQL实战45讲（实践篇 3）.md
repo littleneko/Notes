@@ -2,24 +2,24 @@
 **关键词**：**Flashback**，**mysqlbinlog**，**延迟复制备库**
 
 
-1. 使用delete删除数据：利用binlog Flashback
-1. truncate/dro：全量备份，加增量日志
-   1. 为了加速数据恢复，如果这个临时库上有多个数据库，你可以在使用 mysqlbinlog 命令时，加上一个–database 参数，用来指定误删表所在的库
+1. 使用 delete 删除数据：利用 binlog Flashback
+1. truncate/drop：全量备份，加增量日志
+   1. 为了加速数据恢复，如果这个临时库上有多个数据库，你可以在使用 mysqlbinlog 命令时，加上一个 -database 参数，用来指定误删表所在的库
    1. 在应用日志的时候，==**需要跳过误操作的那个语句的 binlog**==
-      1. 无GTID：–stop-position –start-position 跳过
-      1. 开启GTID：set gtid_next=gtid1;begin;commit;
+      1. 无 GTID：-stop-position -start-position 跳过
+      1. 开启 GTID：set gtid_next=gtid1;begin;commit;
    3. 使用 mysqlbinlog 方法恢复数据还是不够快，主要原因有两个
       1. 如果是误删表，最好就是只恢复出这张表，也就是只重放这张表的操作，但是 mysqlbinlog 工具并不能指定只解析一个表的日志
       1. 用 mysqlbinlog 解析出日志应用，应用日志的过程就只能是单线程
    4. 一种加速的方法是，在用备份恢复出临时实例之后，将这个临时实例设置成线上备库的从库
-      1. 在 start slave 之前，先通过执行﻿﻿change replication filter replicate_do_table = (tbl_name) 命令，就可以让临时库只同步误操作的表
+      1. 在 start slave 之前，先通过执行 ﻿﻿change replication filter replicate_do_table = (tbl_name) 命令，就可以让临时库只同步误操作的表
       1. 这样做也可以用上并行复制技术，来加速整个数据恢复过程
 3. 延迟复制备库：延迟复制的备库是一种特殊的备库，通过 CHANGE MASTER TO MASTER_DELAY = N 命令，可以指定这个备库持续保持跟主库有 N 秒的延迟。
-3. rm 删除数据：又高可用集群，不怕
+3. rm 删除数据：有高可用集群，不怕
 
 
 
-# ⭐️32 | 为什么还有kill不掉的语句？
+# ⭐️32 | 为什么还有 kill 不掉的语句？
 **关键词**：**kill query**，**kill connection**，==**mysql_store_result**==，==**mysql_use_result**==
 
 
@@ -28,7 +28,7 @@
    1. 一个是 kill connection + 线程 id，这里 connection 可缺省，表示==**断开这个线程的连接**==，当然如果这个线程有语句正在执行，也是要先停止正在执行的语句的
 2. 当用户执行 kill query thread_id_B 时，MySQL 里处理 kill 命令的线程做了两件事：
    1. 把 session B 的运行状态改成 ==THD::KILL_QUERY== (将变量 killed 赋值为 THD::KILL_QUERY)；
-   1. 给 ==session B 的执行线程发一个信号==，发一个信号的目的，就是让 session B 退出等待，来处理这个 THD::KILL_QUERY 状态（MDL锁等释放）。
+   1. 给 ==session B 的执行线程发一个信号==，发一个信号的目的，就是让 session B 退出等待，来处理这个 THD::KILL_QUERY 状态（MDL 锁等释放）。
 3. Session B 不是“说停就停的”
    1. 一个语句执行过程中有多处“埋点”，==**在这些“埋点”的地方判断线程状态，如果发现线程状态是 THD::KILL_QUERY，才开始进入语句终止逻辑**==；
    1. 如果处于等待状态，必须是一个==**可以被唤醒的等待**==，否则根本不会执行到“埋点”处；
@@ -40,11 +40,11 @@
       1. ==大查询回滚==。如果查询过程中生成了比较大的临时文件，加上此时文件系统压力大，删除临时文件可能需要等待 IO 资源，导致耗时较长。
       1. ==DDL 命令执行到最后阶段==，如果被 kill，需要删除中间过程的临时文件，也可能受 IO 资源影响耗时较久。
 5. ==**客户端通过 Ctrl+C 命令，并不是直接终止线程**==。而由于 MySQL 是停等协议，所以这个线程执行的语句还没有返回的时候，再往这个连接里面继续发命令也是没有用的。实际上，执行 Ctrl+C 的时候，是 MySQL 客户端另外启动一个连接，然后发送一个 kill query 命令。
-5. mysql客户端的-A参数，表示关掉自动补全的功能，对于表很多的库，加快返回速度（不需要show databases; show tables建立本地索引）
+5. mysql 客户端的 -A 参数，表示关掉自动补全的功能，对于表很多的库，加快返回速度（不需要 show databases; show tables 建立本地索引）
 5. MySQL 客户端发送请求后，接收服务端返回结果的方式有两种：
-   1. 一种是==**本地缓存**==，也就是在本地开一片内存，先把结果存起来。如果你用 API 开发，对应的就是 ==**mysql_store_result** ==方法。
+   1. 一种是==**本地缓存**==，也就是在本地开一片内存，先把结果存起来。如果你用 API 开发，对应的就是 ==**mysql_store_result**==方法。
    1. 另一种是==**不缓存**==，读一个处理一个。如果你用 API 开发，对应的就是 ==**mysql_use_result**== 方法。
-8. mysql 客户端加上 –quick 参数，就会使用第二种不缓存的方式。==采用不缓存的方式时，如果本地处理得慢，就会导致服务端发送结果被阻塞，因此会让服务端变慢==
+8. mysql 客户端加上 -quick 参数，就会使用第二种不缓存的方式。==采用不缓存的方式时，如果本地处理得慢，就会导致服务端发送结果被阻塞，因此会让服务端变慢==
 
 
 
@@ -53,10 +53,29 @@
 
 
 1. MySQL 是“边读边发的”，这个概念很重要。这就意味着，如果客户端接收得慢，会导致 MySQL 服务端由于结果发不出去，这个事务的执行时间变长。一个查询在发送过程中，占用的 MySQL 内部的内存最大就是 net_buffer_length 这么大。
+
 1. 如果你看到 State 的值一直处于 ==“**Sending to client**”==，就表示==**服务器端的网络栈写满了**==
+
 1. ==**Sending data**== 并不一定是指“正在发送数据”，而==**可能是处于执行器过程中的任意阶段**==。比如，你可以构造一个锁等待的场景，就能看到 Sending data 状态
-1. ==**InnoDB 对 LRU 的改进：全表扫描不会把 buffer pool 都刷掉（具体改进项略）**==
+
+1. ==**InnoDB 对 LRU 的改进：全表扫描不会把 buffer pool 都刷掉**== ⭐️
+
+   <img src="https://littleneko.oss-cn-beijing.aliyuncs.com/img/21f64a6799645b1410ed40d016139828.png" alt="img" style="zoom:50%;" />
+
+   <center>图 7 改进的 LRU 算法</center>
+
+   在 InnoDB 实现上，按照 5:3 的比例把整个 LRU 链表分成了 young 区域和 old 区域。图中 LRU_old 指向的就是 old 区域的第一个位置，是整个链表的 5/8 处。也就是说，靠近链表头部的 5/8 是 young 区域，靠近链表尾部的 3/8 是 old 区域。
+
+   改进后的 LRU 算法执行流程变成了下面这样。
+
+   1. 图 7 中状态 1，要访问数据页 P3，由于 P3 在 young 区域，因此和优化前的 LRU 算法一样，将其移到链表头部，变成状态 2。
+   2. 之后要访问一个新的不存在于当前链表的数据页，这时候依然是淘汰掉数据页 Pm，但是新插入的数据页 Px，是放在 LRU_old 处。
+   3. 处于 old 区域的数据页，每次被访问的时候都要做下面这个判断：
+      1. 若这个数据页在 LRU 链表中存在的时间超过了 1 秒，就把它移动到链表头部；
+      2. 如果这个数据页在 LRU 链表中存在的时间短于 1 秒，位置保持不变。1 秒这个时间，是由参数 innodb_old_blocks_time 控制的。其默认值是 1000，单位毫秒。
+
 1. ==**长事务**==的影响，就要结合我们前面文章中提到的锁、MVCC 的知识点了。
+
    1. 如果前面的语句有更新，意味着它们在占用着==**行锁**==，会导致别的语句更新被锁住；
    1. 当然读的事务也有问题，就是会导致 ==**undo log 不能被回收**==，导致回滚段空间膨胀。
 
@@ -69,42 +88,43 @@
 
    <img src="https://littleneko.oss-cn-beijing.aliyuncs.com/img/1599326363767-9c42769b-3678-4fbc-931a-e6fafcff1647.png" alt="image.png" style="zoom:50%;" />
 
-   在这个流程里：
+   这个过程是先遍历表 t1，然后根据从表 t1 中取出的每行数据中的 a 值，去表 t2 中查找满足条件的记录。在这个流程里：
 
       1. ==对**驱动表** t1 做了全表扫描==，这个过程需要扫描 100 行；
-
       1. 而对于每一行 R，==根据 a 字段去表 t2 查找，走的是树搜索过程==。由于我们构造的数据都是一一对应的，因此每次的搜索过程都只扫描一行，也是总共扫描 100 行；
+      1. 所以，整个执行流程，总扫描行数是 200。
 
-         1. 所以，整个执行流程，总扫描行数是 200。
+   通过上面的分析我们得到了两个结论：
 
-2. 通过上面的分析我们得到了两个结论：
 
    1. 使用 join 语句，性能比强行拆成多个单表执行 SQL 语句的性能要好；
-   1. 如果使用 join 语句的话，==**需要让小表做驱动表**==。
+   2. 如果使用 join 语句的话，==**需要让小表做驱动表**==。
 
-​		但是，你需要注意，这个结论的==**前提是“可以使用被驱动表的索引**”==。
+   但是，你需要注意，这个结论的==**前提是“可以使用被驱动表的索引**”==。
 
-3. ==**Simple Nested-Loop Join（不能使用被驱动表的索引**）==：因为对于驱动表的每一条数据，需要在被驱动表中全表扫描，MySQL实际没有使用这种方法
+2. ==**Simple Nested-Loop Join（不能使用被驱动表的索引**）==：因为对于驱动表的每一条数据，需要在被驱动表中全表扫描，MySQL实际没有使用这种方法
+
 3. ==**Block Nested-Loop Join（不能使用被驱动表的索引）**==
 
-​		被驱动表上没有可用的索引，算法的流程是这样的：
+   被驱动表上没有可用的索引，算法的流程是这样的：
 
-* ==把表 t1 的数据读入线程内存 join_buffer 中==，由于我们这个语句中写的是 select *，因此是把整个表 t1 放入了内存；
-* ==扫描表 t2，把表 t2 中的每一行取出来，跟 join_buffer 中的数据做对比==，满足 join 条件的，作为结果集的一部分返回。
+   * ==把表 t1 的数据读入线程内存 join_buffer 中==，由于我们这个语句中写的是 select *，因此是把整个表 t1 放入了内存；
 
-> 注意：**join_buffer是无序的**，每次需要全部扫描一遍
+   * ==扫描表 t2，把表 t2 中的每一行取出来，跟 join_buffer 中的数据做对比==，满足 join 条件的，作为结果集的一部分返回。
+
+     >  注意：**join_buffer 是无序的**，每次需要全部扫描一遍
 
 <img src="https://littleneko.oss-cn-beijing.aliyuncs.com/img/1599326831821-cff99b83-c84c-484d-984c-f47038c354ef.png" alt="image.png" style="zoom:50%;" />
 
 5. ⭐️join_buffer 的大小是由参数 join_buffer_size 设定的，默认值是 256k。==如果放不下表 t1 的所有数据话，策略很简单，就是分段放==。
 
-执行过程就变成了：
+   执行过程就变成了：
 
    1. 扫描表 t1，顺序读取数据行放入 join_buffer 中，放完第 88 行 join_buffer 满了，继续第 2 步；
-   1. 扫描表 t2，把 t2 中的每一行取出来，跟 join_buffer 中的数据做对比，满足 join 条件的，作为结果集的一部分返回；
-   1. 清空 join_buffer；继续扫描表 t1，顺序读取最后的 12 行数据放入 join_buffer 中，继续执行第 2 步。
+   2. 扫描表 t2，把 t2 中的每一行取出来，跟 join_buffer 中的数据做对比，满足 join 条件的，作为结果集的一部分返回；
+   3. 清空 join_buffer；继续扫描表 t1，顺序读取最后的 12 行数据放入 join_buffer 中，继续执行第 2 步。
 
-执行流程图也就变成这样：
+   执行流程图也就变成这样：
 
 <img src="https://littleneko.oss-cn-beijing.aliyuncs.com/img/1599327006479-e24476cb-5b68-4411-acca-e96c29ac331d.png" alt="image.png" style="zoom: 50%;" />
 
@@ -122,11 +142,11 @@
 
 1. Multi-Range Read 优化
 
-   <img src="https://littleneko.oss-cn-beijing.aliyuncs.com/img/1599327500658-27aea8e7-c300-4d3f-bd77-a0d1ebedc5fd.png" alt="image.png" style="zoom:80%;" />
+   <img src="https://littleneko.oss-cn-beijing.aliyuncs.com/img/1599327500658-27aea8e7-c300-4d3f-bd77-a0d1ebedc5fd.png" alt="image.png" style="zoom: 50%;" />
 
 2. **Batched Key Access**（对 NLJ 的优化）：每次从驱动表中取一批排序，再去被驱动表中查找
 
-   <img src="https://littleneko.oss-cn-beijing.aliyuncs.com/img/1599327587873-f419f2d9-37bb-43b1-b021-f69295233114.png" alt="image.png" style="zoom:80%;" />
+   <img src="https://littleneko.oss-cn-beijing.aliyuncs.com/img/1599327587873-f419f2d9-37bb-43b1-b021-f69295233114.png" alt="image.png" style="zoom: 50%;" />
 
 3. ⭐️使用 Block Nested-Loop Join(BNL) 算法时，可能会==对被驱动表做多次扫描==。如果这个被驱动表是一个大的冷数据表，除了会导致 IO 压力大以外，==**多次扫描一个冷表，而且这个语句执行时间超过 1 秒，就会在再次扫描冷表的时候，把冷表的数据页移到 LRU 链表头部，**==影响 Buffer Pool 的正常运作。
 3. BNL 转 BKA：不论是在原表上加索引，还是用有索引的临时表，我们的思路都是让 join 语句能够用上被驱动表上的索引，来触发 BKA 算法，提升查询性能
@@ -190,7 +210,7 @@
    1. 这个参数的值被设置为 2 时，所有的申请自增主键的动作都是申请后就释放锁
 7. 为什么默认设置下，insert … select 要使用语句级的锁？为什么这个参数的默认值不是 2？binlog_format=statement下会造成主从不一致的问题（略）
 7. 有 insert … select 这种批量插入数据的场景时，从并发插入数据性能的角度考虑，我建议你这样设置：innodb_autoinc_lock_mode=2 ，并且 binlog_format=row。批量插入数据，包含的语句类型是 insert … select、replace … select 和 load data 语句。
-7. 对于==批量插入==数据的语句，MySQL 有一个==批量申请自增 id== 的策略：按1，2，4，8的个数申请，**这是主键 id 出现自增 id 不连续的第三种原因**
+7. 对于==批量插入==数据的语句，MySQL 有一个==批量申请自增 id== 的策略：按 1，2，4，8 的个数申请，**这是主键 id 出现自增 id 不连续的第三种原因**
 
 
 
