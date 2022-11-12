@@ -28,6 +28,7 @@
 
 ## 使用场景
 `std::unique_ptr` 的常见用法是作为继承层次结构中对象的工厂函数返回类型，假设我们有一个投资类型（比如股票、债券、房地产等）的继承结构，使用基类 `Investment`。
+
 ```cpp
 class Investment { ... };
 class Stock: public Investment { ... };
@@ -55,7 +56,7 @@ std::unique_ptr<Investment> makeInvestment(Ts&&... params);
 
 
 ## 构造和销毁
-默认情况下，销毁将通过 `delete` 进行，但是在构造过程中，`std::unique_ptr` 对象可以被设置为使用（对资源的）自定义删除器：当资源需要销毁时可调用的任意函数（或者函数对象，包括 lambda 表达式）。如果通过`makeInvestment` 创建的对象不应仅仅被 delete，而应该先写一条日志，`makeInvestment` 可以以如下方式实现。
+默认情况下，销毁将通过 `delete` 进行，但是在构造过程中，`std::unique_ptr` 对象可以被设置为使用（对资源的）自定义删除器：当资源需要销毁时可调用的任意函数（或者函数对象，包括 lambda 表达式）。如果通过 `makeInvestment` 创建的对象不应仅仅被 delete，而应该先写一条日志，`makeInvestment` 可以以如下方式实现。
 ```cpp
 // custom deleter(a lambda expression) revised return type
 auto delInvmt = [](Investment* pInvestment) {
@@ -86,7 +87,7 @@ std::unique_ptr<Investment, decltype(delInvmt)> makeInvestment(Ts&&... params) {
 
 1. 尝试将原始指针（比如 new 创建）赋值给 `std::unique_ptr` 不能通过编译，因为是一种从原始指针到智能指针的隐式转换，这种隐式转换会出问题，所以 C++11 的智能指针禁止这个行为，这就是通过 reset 来让 pInv 接管通过 new 创建的对象的所有权的原因。
 1. 使用 new 时，我们使用 `std::forward` 把传给 makeInvestment 的实参==完美转发==出去，这使调用者提供的所有信息可用于正在创建的对象的构造函数。
-1. 自定义删除器的形参类型是 `Investment*`，不管在 `makeInvestment` 内部创建的对象的真实类型（如Stock，Bond，或 RealEstate）是什么，它最终在 lambda 表达式中，作为 `Investment*` 对象被删除。==这意味着我们通过基类指针删除派生类实例，为此，基类 `Investment` 必须有虚析构函数==。
+1. 自定义删除器的形参类型是 `Investment*`，不管在 `makeInvestment` 内部创建的对象的真实类型（如 Stock，Bond，或 RealEstate）是什么，它最终在 lambda 表达式中，作为 `Investment*` 对象被删除。==这意味着我们通过基类指针删除派生类实例，为此，基类 `Investment` 必须有虚析构函数==。
 1. 当使用默认删除器时（如 delete），你可以合理假设 `std::unique_ptr` 对象和原始指针大小相同。当自定义删除器时，情况可能不再如此。==函数指针形式的删除器，通常会使 `std::unique_ptr` 的从一个字（word）大小增加到两个==。对于函数对象形式的删除器来说，变化的大小取决于函数对象中存储的状态多少，无状态函数（stateless function）对象（比如不捕获变量的 lambda 表达式）对大小没有影响，这意味==当自定义删除器可以实现为函数或者 lambda 时，尽量使用 lambda==。
 
 ## 对数组和单个对象的支持
@@ -97,7 +98,7 @@ std::unique_ptr<Investment, decltype(delInvmt)> makeInvestment(Ts&&... params) {
 
 
 ## 转换为 std::shared_ptr
-`std::unique_ptr` 是 C++11 中表示专有所有权的方法，但是其最吸引人的功能之一是它==可以轻松高效的转换为`std::shared_ptr==：
+`std::unique_ptr` 是 C++11 中表示专有所有权的方法，但是其最吸引人的功能之一是它==可以轻松高效的转换为 std::shared_ptr==：
 
 ```cpp
 // converts std::unique_ptr to std::shared_ptr
@@ -106,7 +107,7 @@ std::shared_ptr<Investment> sp = makeInvestment( arguments );
 ## Summary
 
 1. `std::unique_ptr` 是轻量级、快速的、只可移动（move-only）的管理专有所有权语义资源的智能指针
-1. 默认情况，资源销毁通过 `delete` 实现，但是支持自定义删除器，有状态的删除器和函数指针会增加`std::unique_ptr` 对象的大小
+1. 默认情况，资源销毁通过 `delete` 实现，但是支持自定义删除器，有状态的删除器和函数指针会增加 `std::unique_ptr` 对象的大小
 1. 将 `std::unique_ptr` 转化为 `std::shared_ptr` 非常简单
 
 # 对共享资源使用 std::shared_ptr
@@ -120,8 +121,8 @@ std::shared_ptr<Investment> sp = makeInvestment( arguments );
 引用计数暗示着性能问题：
 
 1. ==**`std::shared_ptr ` 大小是原始指针的两倍**==，原因是它内部包含一个指向资源的原始指针，还包含一个指向资源的引用计数值的原始指针。（这种实现法并不是标准要求的，但是我熟悉的所有标准库都这样实现）
-1. ==**引用计数的内存必须动态分配**==。 概念上，引用计数与所指对象关联，==但是实际上被指向的对象不知道这件事情，因此它们没有办法存放一个引用计数值==（一个好消息是任何对象（甚至是内置类型的）都可以由`std::shared_ptr` 管理）。使用 `std::make_shared` 创建 `std::shared_ptr` 可以避免引用计数的动态分配，但是还存在一些 `std::make_shared` 不能使用的场景，这时候引用计数就会动态分配。
-1. ==**递增递减引用计数必须是原子性的**==，原因是多个 reader、writer 可能在不同的线程。比如，指向某种资源的`std::shared_ptr` 可能在一个线程执行析构（因此递减指向的对象的引用计数），在另一个不同的线程，一个指向相同对象的 `std::shared_ptr` 可能在执行拷贝操作（因此递增了同一个引用计数）。原子操作通常比非原子操作要慢，所以即使引用计数通常只有一个 word 大小，你也应该假定读写它们是存在开销的。
+1. ==**引用计数的内存必须动态分配**==。 概念上，引用计数与所指对象关联，==但是实际上被指向的对象不知道这件事情，因此它们没有办法存放一个引用计数值==（一个好消息是任何对象（甚至是内置类型的）都可以由 `std::shared_ptr` 管理）。使用 `std::make_shared` 创建 `std::shared_ptr` 可以避免引用计数的动态分配，但是还存在一些 `std::make_shared` 不能使用的场景，这时候引用计数就会动态分配。
+1. ==**递增递减引用计数必须是原子性的**==，原因是多个 reader、writer 可能在不同的线程。比如，指向某种资源的 `std::shared_ptr` 可能在一个线程执行析构（因此递减指向的对象的引用计数），在另一个不同的线程，一个指向相同对象的 `std::shared_ptr` 可能在执行拷贝操作（因此递增了同一个引用计数）。原子操作通常比非原子操作要慢，所以即使引用计数通常只有一个 word 大小，你也应该假定读写它们是存在开销的。
 
 ---
 
@@ -206,7 +207,7 @@ void Widget::process()
 {
     ... 
     // process the Widget
-	// add it to list of processed Widgets; 
+	  // add it to list of processed Widgets; 
     processedWidgets.emplace_back(this);
 }
 // this is wrong!
@@ -265,7 +266,7 @@ private:
 1. 避免从原始指针变量上创建 `std::shared_ptr`。
 
 # 当需要允许悬空的 std::shared_ptr 时使用 std::weak_ptr
-如果有一个像 `std::shared_ptr` 但是不参与资源所有权共享的指针是很方便的，换句话说，是一个类似`std::shared_ptr` 但不影响对象引用计数的指针。这种类型的智能指针必须要解决 `std::shared_ptr` 的问题：指向的对象可能已经销毁了。一个真正的智能指针应该通过追踪它何时悬空（dangles）来处理这个问题，比如它所指向的对象已经不存在了，这就是对 `std::weak_ptr` 最精确的描述。
+如果有一个像 `std::shared_ptr` 但是不参与资源所有权共享的指针是很方便的，换句话说，是一个类似 `std::shared_ptr` 但不影响对象引用计数的指针。这种类型的智能指针必须要解决 `std::shared_ptr` 的问题：指向的对象可能已经销毁了。一个真正的智能指针应该通过追踪它何时悬空（dangles）来处理这个问题，比如它所指向的对象已经不存在了，这就是对 `std::weak_ptr` 最精确的描述。
 
 
 ## 创建和使用
@@ -302,7 +303,7 @@ std::shared_ptr<Widget> spw3(wpw);          // 如果 wpw 过期，抛出 std::b
 ```
 ## 使用场景
 ### 缓存对象
-考虑一个工厂函数，它基于一个唯一 ID 从只读对象上产出智能指针，工厂函数会返回一个该对象类型的`std::unique_ptr` ：
+考虑一个工厂函数，它基于一个唯一 ID 从只读对象上产出智能指针，工厂函数会返回一个该对象类型的 `std::unique_ptr` ：
 ```cpp
 std::unique_ptr<const Widget> loadWidget(WidgetID id);
 ```
@@ -334,7 +335,7 @@ fastLoadWidget 的实现忽略了以下事实：缓存可能会累积过期的 `
 
 
 ### 观察者设计模式
-让我们考虑第二个场景：观察者设计模式（Observer design pattern）。此模式的主要组件是 subjects（状态可能会更改的对象）和 observers（状态发生更改时要通知的对象）。在大多数实现中，每个 subject 都包含一个数据成员，该成员持有指向其 observers 的指针，这使 subjects 很容易发布状态更改通知。subjects 对控制observers 的生命周期（即它们什么时候被销毁）没有兴趣，但是 subjects 对确保另一件事具有极大的兴趣，就是一个 observer 被销毁时，不再尝试访问它。一个合理的设计是每个 subject 持有一个 `std::weak_ptr` 容器指向 observers，因此可以在使用前检查是否已经悬空。
+让我们考虑第二个场景：观察者设计模式（Observer design pattern）。此模式的主要组件是 subjects（状态可能会更改的对象）和 observers（状态发生更改时要通知的对象）。在大多数实现中，每个 subject 都包含一个数据成员，该成员持有指向其 observers 的指针，这使 subjects 很容易发布状态更改通知。subjects 对控制 observers 的生命周期（即它们什么时候被销毁）没有兴趣，但是 subjects 对确保另一件事具有极大的兴趣，就是一个 observer 被销毁时，不再尝试访问它。一个合理的设计是每个 subject 持有一个 `std::weak_ptr` 容器指向 observers，因此可以在使用前检查是否已经悬空。
 
 
 ### 循环引用

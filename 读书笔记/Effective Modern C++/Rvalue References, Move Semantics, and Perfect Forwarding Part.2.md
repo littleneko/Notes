@@ -14,7 +14,7 @@ void logAndAdd(const std::string& name)
 ```cpp
 std::string petName("Darla");
 logAndAdd(petName);                     // 传递左值 std::string
-logAndAdd(std::string("Persephone"));	// 传递右值 std::string
+logAndAdd(std::string("Persephone"));	  // 传递右值 std::string
 logAndAdd("Patty Dog");                 // 传递字符串字面值
 ```
 
@@ -34,7 +34,7 @@ void logAndAdd(T&& name)
 
 std::string petName("Darla");           // 跟之前一样
 logAndAdd(petName);                     // 跟之前一样，拷贝右值到 multiset
-logAndAdd(std::string("Persephone"));	// 移动右值而不是拷贝它
+logAndAdd(std::string("Persephone"));	  // 移动右值而不是拷贝它
 logAndAdd("Patty Dog");                 // 在 multiset 直接创建 std::string
                                         // 而不是拷贝一个临时 std::string
 ```
@@ -259,7 +259,7 @@ void logAndAdd(T&& name)
 处理完之后，我们可以将注意力转移到名为 `logAndAddImpl` 的函数上了。有两个重载函数，第一个仅用于非整型类型（即 `std::is_instegral<typename std::remove_reference<T>::type>` 是 `false`）：
 ```cpp
 template<typename T>                            // 非整型实参：添加到全局数据结构中
-void logAndAddImpl(T&& name, std::false_type)	// 译者注：高亮 std::false_type
+void logAndAddImpl(T&& name, std::false_type)	  // 译者注：高亮 std::false_type
 {
     auto now = std::chrono::system_clock::now();
     log(now, "logAndAdd");
@@ -369,7 +369,7 @@ public:
     …
 };
 ```
-当我们拷贝或者移动一个 `SpecialPerson` 对象时，我们希望调用基类对应的拷贝和移动构造函数，来拷贝或者移动基类部分，但是这里，我们将 `SpecialPerson` 传递给基类的构造函数，因为 `SpecialPerson` 和 `Person` 类型不同（在应用 `std::decay` 后也不同），所以完美转发构造函数是启用的，会实例化为精确匹配`SpecialPerson` 实参的构造函数。相比于派生类到基类的转化——这个转化对于在 `Person` 拷贝和移动构造函数中把 `SpecialPerson` 对象绑定到 `Person` 形参非常重要，生成的精确匹配是更优的，所以这里的代码，拷贝或者移动 `SpecialPerson` 对象就会调用 `Person` 类的完美转发构造函数来执行基类的部分。
+当我们拷贝或者移动一个 `SpecialPerson` 对象时，我们希望调用基类对应的拷贝和移动构造函数，来拷贝或者移动基类部分，但是这里，我们将 `SpecialPerson` 传递给基类的构造函数，因为 `SpecialPerson` 和 `Person` 类型不同（在应用 `std::decay` 后也不同），所以完美转发构造函数是启用的，会实例化为精确匹配 `SpecialPerson` 实参的构造函数。相比于派生类到基类的转化——这个转化对于在 `Person` 拷贝和移动构造函数中把 `SpecialPerson` 对象绑定到 `Person` 形参非常重要，生成的精确匹配是更优的，所以这里的代码，拷贝或者移动 `SpecialPerson` 对象就会调用 `Person` 类的完美转发构造函数来执行基类的部分。
 
 
 派生类仅仅是按照常规的规则生成了自己的移动和拷贝构造函数，所以这个问题的解决还要落实在基类，尤其是控制是否使用 `Person` 通用引用构造函数启用的条件。现在我们意识到不只是禁止 `Person` 类型启用模板构造函数，而是禁止 `Person` 以及任何派生自 `Person` 的类型启用模板构造函数。讨厌的继承！

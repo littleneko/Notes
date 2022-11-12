@@ -158,7 +158,9 @@ To get around this, DBMSs use I/O parallelism to *split installation across mult
 
 In multi-disk parallelism, the OS/hardware is configured to store the DBMS’s files across multiple storage devices. This can be done through storage appliances or RAID configuration. All of the storage setup is transparent to the DBMS so workers cannot operate on different devices because the DBMS is unaware of the underlying parallelism.
 
-<img src="https://littleneko.oss-cn-beijing.aliyuncs.com/img/image-20220306225046510.png" alt="image-20220306225046510" style="zoom:25%;" /><img src="https://littleneko.oss-cn-beijing.aliyuncs.com/img/image-20220306225106274.png" alt="image-20220306225106274" style="zoom:25%;" />
+<img src="https://littleneko.oss-cn-beijing.aliyuncs.com/img/image-20220306225046510.png" alt="image-20220306225046510" style="zoom:25%;" />
+
+<img src="https://littleneko.oss-cn-beijing.aliyuncs.com/img/image-20220306225106274.png" alt="image-20220306225106274" style="zoom:25%;" />
 
 ## Database Partitioning
 

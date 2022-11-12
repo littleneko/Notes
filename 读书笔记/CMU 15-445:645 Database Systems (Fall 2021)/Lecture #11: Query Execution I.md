@@ -82,8 +82,7 @@ An access method is how the DBMS accesses the data stored in a table. In general
 
 A sequential table scan is almost always the least efficient method by which a DBMS may execute a query. There are a number of optimizations available to help make sequential scans faster:
 
-* **Prefetching**: Fetch the next few pages in advance so that the DBMS does not have to block on storage
-  I/O when accessing each page.
+* **Prefetching**: Fetch the next few pages in advance so that the DBMS does not have to block on storage I/O when accessing each page.
 * **Buffer Pool Bypass**: The scan operator stores pages that it fetches from disk in its local memory instead of the buffer pool in order to avoid sequential flooding.
 * **Parallelization**: Execute the scan using multiple threads/processes in parallel.
 * **Zone Map**: ==Pre-compute aggregations== for each tuple attribute in a page. The DBMS can then decide whether it needs to access a page by checking its Zone Map first. The Zone Maps for each page are stored in separate pages and there are typically multiple entries in each Zone Map page. Thus, it is
