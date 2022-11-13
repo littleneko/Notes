@@ -43,7 +43,7 @@ On its own, ==2PL is sufficient to **guarantee conflict serializability**==. ==I
 
 > **Tips**:
 >
-> 实际上这是一种脏读。
+> 上图表示了朴素的 2PL 导致的级联回滚的情况，所以需要 S2PL。（实际上这是一种脏读）
 
 There are also potential schedules that are serializable but would not be allowed by 2PL (locking can limit concurrency).
 

@@ -193,7 +193,7 @@ If *TS(T~i~ ) < TS(T~j~ )*, then one of the following three conditions must hold
 
 3. ==T~i~ completes its Read phase before T~j~ completes its Read phase==, and ==T~i~ does not write to any object that is either read or written by T~j~== .
 
-    (WriteSet(Ti ) ∩ ReadSet(T j) = Ø and WriteSet(Ti ) ∩ WriteSet(Tj ) = Ø)
+    (WriteSet(T~i~ ) ∩ ReadSet(T~j~) = Ø and WriteSet(T~i~ ) ∩ WriteSet(T~j~ ) = Ø)
 
    <img src="https://littleneko.oss-cn-beijing.aliyuncs.com/img/image-20220313014335756.png" alt="image-20220313014335756" style="zoom:25%;" />
 
