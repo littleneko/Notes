@@ -2,6 +2,8 @@
 Notes
 
 ## 目录
+1. **MySQL**
+    1. [MySQL semi-sync](./MySQL/MySQL%20semi-sync.md)
 1. **其他**
     1. [OpenWrt](./%E5%85%B6%E4%BB%96/OpenWrt.md)
 1. **学习笔记**

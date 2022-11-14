@@ -17,7 +17,7 @@ There are three key concepts in the ARIES recovery protocol:
 
 Write-ahead log records extend the DBMS’s log record format to include a globally unique *log sequence number* (==**LSN**==). A high level diagram of how log records with LSN’s are written is shown in Figure 1.
 
-![image-20220316230013409](https://littleneko.oss-cn-beijing.aliyuncs.com/img/image-20220316230013409.png)
+<img src="https://littleneko.oss-cn-beijing.aliyuncs.com/img/image-20220316230013409.png" alt="image-20220316230013409"  />
 
 All log records have an LSN. The ==**pageLSN**== is updated every time a transaction modifies a record in the page. The ==**flushedLSN**== in memory is updated every time the DBMS writes out the WAL buffer to disk.
 

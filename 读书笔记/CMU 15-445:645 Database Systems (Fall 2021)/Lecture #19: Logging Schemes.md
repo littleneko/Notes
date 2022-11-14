@@ -77,7 +77,7 @@ The easiest buffer pool management policy to implement is called *NO-STEAL + FOR
 
 A limitation of NO STEAL + FORCE is that all of the data that ==a transaction needs to modify must fit on memory==. Otherwise, that transaction cannot execute because the DBMS is not allowed to write out dirty pages to disk before the transaction commits.
 
-![image-20220316000216064](https://littleneko.oss-cn-beijing.aliyuncs.com/img/image-20220316000216064.png)
+<img src="https://littleneko.oss-cn-beijing.aliyuncs.com/img/image-20220316000216064.png" alt="image-20220316000216064" style="zoom: 33%;" />
 
 #  Shadow Paging
 
@@ -88,7 +88,7 @@ The DBMS maintains two separate copies of the database:
 
 ==Updates are only made in the shadow copy==. When a transaction commits, the shadow is atomically switched to become the new master. This is an example of a NO-STEAL + FORCE system. A high-level example of shadow paging is shown in Figure 2.
 
-![image-20220316000431148](https://littleneko.oss-cn-beijing.aliyuncs.com/img/image-20220316000431148.png)
+<img src="https://littleneko.oss-cn-beijing.aliyuncs.com/img/image-20220316000431148.png" alt="image-20220316000431148" style="zoom:33%;" />
 
 ## Implementation
 
@@ -127,7 +127,7 @@ When a transaction modifies a page, the DBMS copies the original page to a separ
 
 With *write-ahead logging*, the DBMS records all the changes made to the database in a log file (on stable storage) before the change is made to a disk page. The log contains sufficient information to perform the necessary undo and redo actions to restore the database after a crash. ==The DBMS must write to disk the log file records that correspond to changes made to a database object before it can flush that object to disk==. An example of WAL is shown in Figure 3. WAL is an example of a ==STEAL + NO-FORCE== system.
 
-![image-20220316002124274](https://littleneko.oss-cn-beijing.aliyuncs.com/img/image-20220316002124274.png)
+<img src="https://littleneko.oss-cn-beijing.aliyuncs.com/img/image-20220316002124274.png" alt="image-20220316002124274" style="zoom: 33%;" />
 
 In shadow paging, the DBMS was required to perform writes to random non-contiguous pages on disk. Write-ahead logging allows the DBMS to convert random writes into ==sequential writes== to optimize performance. Thus, almost every DBMS uses write-ahead logging (WAL) because it has the fastest runtime performance. But the DBMS’s recovery time with WAL is slower than shadow paging because it has to replay the log.
 
@@ -168,7 +168,7 @@ The contents of a log record can vary based on the implementation.
 * Requires less data written in each log record than physical logging because each record can update multiple tuples over multiple pages. However, it is difficult to implement recovery with logical logging when there are concurrent transactions in a non-deterministic concurrency control scheme. Additionally recovery takes longer because you must re-execute every transaction.
 * Example: The UPDATE, DELETE, and INSERT queries invoked by a transaction.
 
-Physiological Logging:
+**Physiological Logging**:
 
 * Hybrid approach where log records target a single page but do not specify data organization of the page. That is, identify tuples based on a slot number in the page without specifying exactly where in the page the change is located. Therefore the DBMS can reorganize pages after a log record has been written to disk.
 * Most common approach used in DBMSs.
