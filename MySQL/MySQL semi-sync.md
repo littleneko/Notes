@@ -44,7 +44,7 @@ If something goes wrong such that the slave does not process the transaction, th
 
 =="Engine Commit" makes data permanent and release locks on the data. So other sessions can reach the data since then==, even if the session is still waiting for the acknowledgement. It will cause ==phantom read== if master crashes and slave takes work over.
 
-![image-20221114231510230](/home/littleneko/.config/Typora/typora-user-images/image-20221114231510230.png)
+![image.png](https://littleneko.oss-cn-beijing.aliyuncs.com/img/1586189316982-4ef4d477-fbec-4741-94dc-b5102ae40139-20221114233912363.png)
 
 # Links
 
