@@ -15,9 +15,9 @@
 
 RAFT 中将节点状态分为：
 
-- Leader：接收 Client 的请求，并进行复制，任何时刻只有一个 Leader
-- Follower：被动接收各种 RPC 请求
-- Candidate：用于选举出一个新的 Leader
+- **Leader**：接收 Client 的请求，并进行复制，任何时刻只有一个 Leader
+- **Follower**：被动接收各种 RPC 请求
+- **Candidate**：用于选举出一个新的 Leader
 
 RAFT 中 Follower 长时间没有接受到心跳就会转为 Candidate 状态，收到多数投票应答之后可以转为 Leader，Leader 会定期向其他节点发送心跳。当 Leader 和Candidate 接收到更高版本的消息后，转为 Follower。具体节点状态转移图如下：
 
@@ -31,23 +31,26 @@ RAFT 中将时间划分到 term，用于选举，标示某个 Leader 下的 Norm
 
 <img src="https://littleneko.oss-cn-beijing.aliyuncs.com/img/leader_term.png" alt="img" style="zoom: 67%;" />
 
-RAFT 的选主过程中，每个 Candidate 节点==先将本地的 CurrentTerm 加 1==，然后向其他节点发送 RequestVote 请求，其他节点根据本地数据版本、长度和之前选主的结果判断应答成功与否。具体处理规则如下：
+RAFT 的选主过程中，每个 Candidate 节点==先将本地的 currentTerm 加 1==，然后向其他节点发送 RequestVote 请求，其他节点根据本地数据版本、长度和之前选主的结果判断应答成功与否。
 
-1. ==如果 now – lastLeaderUpdateTimestamp < elect_timeout，忽略请求==（注：Leader Lease 未过期，见下面 "Asymmetric Network Partitioning" 部分）
+其他节点收到投票请求后的具体处理规则如下：
 
-2. 如果 req.term < currentTerm，忽略请求
+1. ==如果 now – lastLeaderUpdateTimestamp < elect_timeout，忽略请求==（注：Leader Lease 未过期，见下面 "**Asymmetric Network Partitioning**" 部分）
+2. 如果 req.term < currentTerm，忽略请求（注意：request 中的 term 就是发起投票节点的 currentTerm + 1）
+3. 如果 req.term > currentTerm，设置 req.term 到 currentTerm 中，如果是 Leader 或 Candidate 就转为 Follower，然后进入投票流程
+4. 如果 req.term == currentTerm，进入投票流程
 
-3. 如果 req.term > currentTerm，设置 req.term 到 currentTerm 中，如果是 Leader 或 Candidate 就转为 Follower。
+**投票流程**
 
-4. 如果 req.term == currentTerm
+* 如果 Candidate 的 Log 至少和本地一样新（`req.lastLogTerm > lastLogTerm || (req.lastLogTerm == lastLogTerm && req.lastLogIndex >= lastLogIndex)`）（注：LogId 的比较是先比较 term 再比较 index）
 
-   * 如果 Candidate 的 Log 至少和本地一样新（`req.lastLogTerm > lastLogTerm || (req.lastLogTerm == lastLogTerm && req.lastLogIndex >= lastLogIndex)`）（注：LogId 的比较是先比较 term 再比较 index）
+  * 本地 voteFor 记录为空或者与 vote 请求中的 term 和 CandidateId 都一致，则同意选主请求。
 
-     * 本地 voteFor 记录为空或者与 vote 请求中的 term 和 CandidateId 都一致，则同意选主请求。
+  * 本地 voteFor 记录非空并且与 vote 请求中的 term 一致 CandidateId 不一致，则拒绝选主请求。（一个 term 只能投给一个 Candidate ）
 
-     * 本地 voteFor 记录非空并且与 vote 请求中的 term 一致 CandidateId 不一致，则拒绝选主请求。
+* 如果 Candidate 上数据比本地旧，拒绝选主请求。
 
-   * 如果 Candidate 上数据比本地旧，拒绝选主请求。
+
 
 上面的选主请求处理，符合 Paxos 的 "少数服从多数，后者认同前者" 的原则。按照上面的规则，选举出来的 Leader，一定是多数节点中 Log 数据最新的节点。
 
@@ -102,28 +105,30 @@ Leader 需要决定什么时候将日志应用给状态机是安全的，可以�
 
 ### Log Recovery
 
-Log Recovery 这里分为 current Term 修复和 prev Term 修复，Log Recovery 就是要保证一定已经 Committed 的数据不会丢失，未 Committed 的数据转变为Committed，但不会因为修复过程中断又重启而影响节点之间一致性。
+Log Recovery 这里分为 current Term 修复和 prev Term 修复，Log Recovery 就是要保证已经 Committed 的数据一定不会丢失，未 Committed 的数据转变为Committed，但不会因为修复过程中断又重启而影响节点之间一致性。
 
-current Term 修复主要是解决某些 Follower 节点重启加入集群，或者是新增 Follower 节点加入集群，Leader 需要向 Follower 节点传输漏掉的 Log Entry，如果Follower 需要的 Log Entry 已经在 Leader 上 Log Compaction 清除掉了，Leader 需要将上一个 Snapshot 和其后的 Log Entry 传输给 Follower 节点。Leader-Alive 模式下，只要 Leader 将某一条 Log Entry 复制到多数节点上，Log Entry 就转变为 Committed。 prev Term 修复主要是在保证 Leader 切换前后数据的一致性。通过上面 RAFT 的选主可以看出，每次选举出来的 Leader 一定包含已经 committed 的数据（抽屉原理，选举出来的 Leader 是多数中数据最新的，一定包含已经在多数节点上 commit 的数据），新的 Leader 将会覆盖其他节点上不一致的数据。虽然新选举出来的 Leader 一定包括上一个 Term 的 Leader 已经Committed 的 Log Entry，但是可能也包含上一个 Term 的 Leader 未 Committed 的 Log Entry。这部分 Log Entry 需要转变为 Committed，相对比较麻烦，需要考虑 Leader 多次切换且未完成 Log Recovery，需要保证最终提案是一致的，确定的。 RAFT 中增加了一个约束：==对于之前 Term 的未 Committed 数据，修复到多数节点，且在新的 Term 下至少有一条新的 Log Entry 被复制或修复到多数节点之后，才能认为之前未 Committed 的 Log Entry 转为 Committed。==下图就是一个 prev Term Recovery 的过程：
+current Term 修复主要是解决某些 Follower 节点重启加入集群，或者是新增 Follower 节点加入集群，Leader 需要向 Follower 节点传输漏掉的 Log Entry，如果Follower 需要的 Log Entry 已经在 Leader 上 Log Compaction 清除掉了，Leader 需要将上一个 Snapshot 和其后的 Log Entry 传输给 Follower 节点。Leader-Alive 模式下，只要 Leader 将某一条 Log Entry 复制到多数节点上，Log Entry 就转变为 Committed。 
+
+prev Term 修复主要是在保证 Leader 切换前后数据的一致性。通过上面 RAFT 的选主可以看出，==每次选举出来的 Leader 一定包含已经 committed 的数据==（抽屉原理，选举出来的 Leader 是多数中数据最新的，一定包含已经在多数节点上 commit 的数据），==新的 Leader 将会覆盖其他节点上不一致的数据==。==**虽然新选举出来的 Leader 一定包括上一个 Term 的 Leader 已经 Committed 的 Log Entry，但是可能也包含上一个 Term 的 Leader 未 Committed 的 Log Entry**==。这部分 Log Entry 需要转变为 Committed，相对比较麻烦，需要考虑 Leader 多次切换且未完成 Log Recovery，需要保证最终提案是一致的，确定的。 RAFT 中增加了一个约束：==**对于之前 Term 的未 Committed 数据，修复到多数节点，且在新的 Term 下至少有一条新的 Log Entry 被复制或修复到多数节点之后，才能认为之前未 Committed 的 Log Entry 转为 Committed**。==下图就是一个 prev Term Recovery 的过程：
 
 <img src="https://littleneko.oss-cn-beijing.aliyuncs.com/img/log_recovery.png" alt="img" style="zoom:50%;" />
 
 1. S1 是 Term2 的 Leader，将 LogEntry 部分复制到 S1 和 S2 的 2 号位置，然后 Crash。
 2. S5 被 S3、S4 和 S5 选为 Term3 的 Leader，并只写入一条 LogEntry 到本地，然后 Crash。
 3. S1 被 S1、S2 和 S3 选为 Term4 的Leader，并将 2 号位置的数据修复到 S3，达到多数；并在本地写入一条 Log Entry，然后 Crash。
-4. 这个时候 2 号位置的 Log Entry 虽然已经被复制到多数节点上，但是并不是 Committed。
-   1. S5 被 S3、S4 和 S5 选为 Term5 的 Leader，将 2 号位置 Term3 写入的数据复制到其他节点，覆盖 S1、S2、S3 上 Term2 写入的数据
-   2. S1 被 S1、S2 和 S3 选为 Term5 的 Leader，将 3 号位置 Term4 写入的数据复制到 S2、S3，使得 2 号位置 Term2 写入的数据变为 Committed
+4. **这个时候 2 号位置的 Log Entry 虽然已经被复制到多数节点上，但是并不是 Committed**。
+   * S5 被 S3、S4 和 S5 选为 Term5 的 Leader，将 2 号位置 Term3 写入的数据复制到其他节点，覆盖 S1、S2、S3 上 Term2 写入的数据
+   * S1 被 S1、S2 和 S3 选为 Term5 的 Leader，将 3 号位置 Term4 写入的数据复制到 S2、S3，使得 2 号位置 Term2 写入的数据变为 Committed
 
-通过上面的流程可以看出，在 prev Term Recovery 的情况下，只要 Log Entry 还未被 Committed，即使被修复到多数节点上，依然可能不是 Committed，必须依赖新的 Term 下再有新的 Log Entry 被复制或修复到多数节点上之后才能被认为是 Committed。 选出 Leader 之后，Leader 运行过程中会进行副本的修复，这个时候只要多数副本数据完整就可以正常工作。Leader 为每个 Follower 维护一个 nextId，标示下一个要发送的 logIndex。Follower 接收到 AppendEntries 之后会进行一些一致性检查，检查 AppendEntries 中指定的 LastLogIndex 是否一致，如果不一致就会向 Leader 返回失败。Leader 接收到失败之后，会将 nextId 减 1，重新进行发送，直到成功。这个回溯的过程实际上就是寻找 Follower 上最后一个 CommittedId，然后 Leader 发送其后的 LogEntry。因为 Follower 持久化CommittedId 将会导致更新延迟增大，回溯的窗口也只是 Leader 切换导致的副本间不一致的 LogEntry，这部分数据量一般都很小。
+通过上面的流程可以看出，在 prev Term Recovery 的情况下，只要 Log Entry 还未被 Committed，即使被修复到多数节点上，依然可能不是 Committed，必须依赖新的 Term 下再有新的 Log Entry 被复制或修复到多数节点上之后才能被认为是 Committed。 选出 Leader 之后，Leader 运行过程中会进行副本的修复，这个时候只要多数副本数据完整就可以正常工作。
+
+Leader 为每个 Follower 维护一个 nextId，标示下一个要发送的 logIndex。Follower 接收到 AppendEntries 之后会进行一些一致性检查，检查 AppendEntries 中指定的 LastLogIndex 是否一致，如果不一致就会向 Leader 返回失败。Leader 接收到失败之后，会将 nextId 减 1，重新进行发送，直到成功。这个回溯的过程实际上就是寻找 Follower 上最后一个 CommittedId，然后 Leader 发送其后的 LogEntry。因为 Follower 持久化CommittedId 将会导致更新延迟增大，回溯的窗口也只是 Leader 切换导致的副本间不一致的 LogEntry，这部分数据量一般都很小。
 
 <img src="https://littleneko.oss-cn-beijing.aliyuncs.com/img/log_replication.png" alt="img" style="zoom:50%;" />
 
 ==Follower a 与 Leader 数据都是一致的，只是有数据缺失，可以优化为直接通知 Leader 从 logIndex=5 开始进行重传，这样只需一次回溯==。==Follower b 与 Leader有不一致性的数据，需要回溯 7 次才能找到需要进行重传的位置==。
 
-重新选取 Leader 之后，新的 Leader 没有之前内存中维护的 nextId，以本地 lastLogIndex+1 作为每个节点的 nextId。这样根据节点的 AppendEntries 应答可以调整 nextId：
-
-`local.nextIndex = max(min(local.nextIndex-1, resp.LastLogIndex+1), 1)`
+重新选取 Leader 之后，新的 Leader 没有之前内存中维护的 nextId，以本地 lastLogIndex+1 作为每个节点的 nextId。这样根据节点的 AppendEntries 应答可以调整 nextId：`local.nextIndex = max(min(local.nextIndex-1, resp.LastLogIndex+1), 1)`
 
 ## Log Compaction
 
@@ -157,7 +162,9 @@ Follower 收到 InstallSnapshot 请求之后的处理流程如下：
 4. ==如果现存的 LogEntry 与 Snapshot 的 last_included_index 和 last_include_term 一致，保留后续的 Log；否则删除全部 Log==（表示数据不一致）
 5. Follower 重新加载 Snapshot
 
-> 注 4：raft 保证了如果 term 和 index 一致，那么 log entry 的数据一定是一致的
+> **TIPS**:
+>
+> raft 保证了如果 term 和 index 一致，那么 log entry 的数据一定是一致的
 
 ==由于 InstallSnapshot 请求也可能会重传，或者是 InstallSnapshot 过程中发生了 Leader 切换，新 Leader 的 last_included_index 比较小，可能还有 UnCommitted 的 LogEntry，这个时候就不需要进行 InstallSnapshot。所以 Follower 在收到 InstallSnapshot 的时候，Follower 不是直接删除全部 Log，而是将Snapshot 的 last_include_index 及其之前的 Log Entry 删掉，last_include_index 后续的 Log Entry 继续保留。如果需要保留后面的 Log Entry，这个时候其实不用进行加载 Snapshot 了，如果全部删除的话，就需要重新加载 Snapshot 恢复到最新的状态。==
 
@@ -165,7 +172,7 @@ Follower 收到 InstallSnapshot 请求之后的处理流程如下：
 
 ## Membership Management
 
-分布式系统运行过程中节点总是会存在故障报修，需要支持节点的动态增删。节点增删过程不能影响当前数据的复制，并能够自动对新节点进行数据修复，如果删除节点涉及 Leader，还需要触发自动选主。直接增加节点可能会导致出现新老节点结合出现两个多数集合，造成冲突。下图是 3 个节点的集群扩展到 5 个节点的集群，直接扩展可能会造成 Server1 和 Server2 构成老的多数集合，Server3、Server4 和 Server5构成新的多数集合，两者不相交从而可能导致决议冲突。
+分布式系统运行过程中节点总是会存在故障报修，需要	支持节点的动态增删。节点增删过程不能影响当前数据的复制，并能够自动对新节点进行数据修复，如果删除节点涉及 Leader，还需要触发自动选主。直接增加节点可能会导致出现新老节点结合出现两个多数集合，造成冲突。下图是 3 个节点的集群扩展到 5 个节点的集群，直接扩展可能会造成 Server1 和 Server2 构成老的多数集合，Server3、Server4 和 Server5构成新的多数集合，两者不相交从而可能导致决议冲突。
 
 <img src="https://littleneko.oss-cn-beijing.aliyuncs.com/img/membership.png" alt="img" style="zoom: 67%;" />
 
