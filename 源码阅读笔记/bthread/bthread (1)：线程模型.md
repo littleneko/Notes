@@ -31,7 +31,7 @@ bthread 是一个 M:N 线程库，一个 bthread 被卡住不会影响其他 bth
 > **Tips**:
 > 官方并不认为 bthread 是协程(coroutine)，原因是 bthread 是一个 M:N 的线程库，而传统的协程定义是 N:1 线程库，也不需要 work stealing 调度和 butex 等特性。同样属于 M:N 线程模型的还有 goroutine，因为我们已经习惯把 goroutine 叫做协程，所以我们后面不再进行区分。
 >
-> bthread 与 goroutine 或其他协程库 (比如 [libco](https://github.com/Tencent/libco)) 的一个区别是：bthread 并没有hook 系统 IO，无法做到在 IO 阻塞时自动切换，只能主动切换或是 butex 拿不到锁时进行切换。
+> bthread 与 goroutine 或其他协程库 (比如 [libco](https://github.com/Tencent/libco)) 的一个区别是：bthread 并没有 hook 系统 IO，无法做到在 IO 阻塞时自动切换，只能主动切换或是 butex 拿不到锁时进行切换。
 
 ## Goals
 
