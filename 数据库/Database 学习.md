@@ -37,8 +37,8 @@ TiDB 4.0 新特性前瞻（二）白话“悲观锁”: https://pingcap.com/zh/b
 
 **TiDB 悲观锁实现原理**: https://tidb.net/blog/7730ed79
 
-
 TiKV 源码解析系列文章（十一）Storage - 事务控制层: https://pingcap.com/zh/blog/tikv-source-code-reading-11
+
 TiKV 源码解析系列文章（十二）分布式事务: https://pingcap.com/zh/blog/tikv-source-code-reading-12
 
 # 分布式
