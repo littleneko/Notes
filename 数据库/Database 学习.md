@@ -74,8 +74,9 @@ LevelDB/RocksDB
 
 TiKV 是如何存取数据的: https://pingcap.com/zh/blog/how-tikv-store-get-data
 
-
 # SQL 层
+
+Cascades Optimizer: https://zhuanlan.zhihu.com/p/73545345
 
 
 # DDL
