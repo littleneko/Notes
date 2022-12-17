@@ -4,17 +4,15 @@ CockroachDB 是一个支持 SQL 及完整事务 ACID 的分布式数据库，Coc
 
 # 从时间说起
 
-在一个单机系统中，要追溯系统发生的事务先后顺序，可通过为每一个事务分配一个顺序递增的 ID（通常称之为事务 ID）来标识事务发生的先后顺序。但是对一个分布式系统来说情况就有点特殊。目前分布式系统中常用的事务 ID 分配方式有两种，一种是由一个中心节点统一产生事务 ID；另一种是使用分布式时钟算法产生事务 ID。第一种方案实现较为简单，但是存在单点问题，跨地域部署延时较高；第二种方案各个节点可直接获取本地时间不存在单点问题，但是由于各个节点物理时钟无法保证完全一致，事务顺序保证实现较为复杂。
+在一个单机系统中，要追溯系统发生的事务先后顺序，可通过为每一个事务分配一个顺序递增的 ID（通常称之为事务 ID）来标识事务发生的先后顺序，但是对一个分布式系统来说情况就有点特殊。目前分布式系统中常用的事务 ID 分配方式有两种：==一种是由一个中心节点统一产生事务 ID==；==另一种是使用分布式时钟算法产生事务 ID==。第一种方案实现较为简单，但是==存在单点问题，跨地域部署延时较高==；第二种方案各个节点可直接获取本地时间不存在单点问题，但是由于各个节点物理时钟无法保证完全一致，事务顺序保证实现较为复杂。
 
 Google Spanner 和 CockroachDB 都采用了去中心化的设计理念，因此使用了第二种方案，但又有所不同。Google 使用了一个基于硬件 (GPS 原子钟) 的TrueTime API 提供相对比较精准的时钟，具体细节可参考 Spanner 的论文；而 CockroachDB 使用了一个软件实现的基于 NTP 时钟同步的混合逻辑时钟算法 (Hybrid Logic Clock) —— HLC 追踪系统中事务的的 hb 关系 (happen before)。
 
-**e hb f 关系 (e happen before f):** 
-
-1) **如果事件 e 和 f 发生在同一节点，e 发生在 f 之前**
-
-2) **e 是发送事件，f 是相应的接收事件**
-
-3) **基于上述两者的过渡情况**
+> **e hb f 关系 (e happen before f):** 
+>
+> 1. 如果事件 e 和 f 发生在同一节点，e 发生在 f 之前
+> 2. e 是发送事件，f 是相应的接收事件
+> 3. 基于上述两者的过渡情况
 
 
 
@@ -34,10 +32,10 @@ Send or local event
 Receive event of message m
     l'.j := l.j ;
     l.j := max (l'.j, l.m, pt.j);
-    If (l.j = l'.j = l.m) then c.j :=max(c.j, c.m) + 1	// 本地 WallTime == 本地 pt == 对方 WallTime
-      Elseif (l.j = l'.j) then c.j := c.j + 1						// 本地 WallTime > 对方 WallTime and 本地 WallTime > 本地 pt
-      Elseif (l.j = l'.m) then c.j := c.m + 1						// 本地 WallTime < 对方 WallTime and 本地 WallTime > 本地 pt
-      Else c.j := 0																			// 本地 pt > 本地 WallTime and 本地 pt > 对方 WallTime
+    If (l.j = l'.j = l.m) then c.j :=max(c.j, c.m) + 1	// 本地 WallTime == 本地 && pt == 对方 WallTime
+      Elseif (l.j = l'.j) then c.j := c.j + 1						// 本地 WallTime > 对方 WallTime && 本地 WallTime > 本地 pt
+      Elseif (l.j = l'.m) then c.j := c.m + 1						// 本地 WallTime < 对方 WallTime && 本地 WallTime > 本地 pt
+      Else c.j := 0																			// 本地 pt > 本地 WallTime && 本地 pt > 对方 WallTime
     Timestamp with l.j, c.j
 ```
 
@@ -61,20 +59,20 @@ HLC 算法保证了 HLC 时间有如下特性：
 
    > TIPS:
    >
-   > * 因为节点间的物理时钟偏差一定小于等于 ε，因此 WallTime 的上限所有节点的物理时钟的最大值，即 pt + ε
-   > * b hb e => pt.e + ε ≥ pt.b，因为 pt.e + ε 是 e 的 WallTime 上界，即 l.e <= pt.e + ε，我们还知道 l.b >= pt.b，如果 pt.b > pt.e + ε 的话，可以推断出 l.b >= pt.b > pt.e +  ε >= l.e，即 l.b > l.e，那么一定不满足 b hb e
+   > * 节点间的物理时钟偏差一定小于等于 ε，因此 WallTime 的上限所有节点的物理时钟的最大值，即 pt + ε
+   > * 证明 b hb e => pt.e + ε ≥ pt.b：因为 pt.e + ε 是 e 的 WallTime 上界，即 l.e <= pt.e + ε，我们还知道 l.b >= pt.b。假设 pt.b > pt.e + ε，可以推断出 l.b >= pt.b > pt.e +  ε >= l.e，即 l.b > l.e，那么一定不满足 b hb e，因此假设 pt.b > pt.e + ε 不成立。
 
-5. HLC 支持 Snapshot Read。如下图所示，==节点 0 将当前发 Snapshot Read 的 HLC 时间 hlc.e 传播到其他节点，和其他节点产生关联关系(实际上是把其他节点的 HLC 时间往后推移，使其后续产生的事件的 HLC 时间大于 hlc.e，满足 hb 关系)，这样就能拿到一个确定的全局 Snapshot==。但是这种 Snapshot Read ==不能保证完全的线性一致性 (linearizability)==，如下图中的节点 3 的 (2,2,0) 事件。
+5. HLC 支持 Snapshot Read。如下图所示，==节点 0 将当前发 Snapshot Read 的 HLC 时间 hlc.e 传播到其他节点，和其他节点产生关联关系 (实际上是把其他节点的 HLC 时间往后推移，使其后续产生的事件的 HLC 时间大于 hlc.e，满足 hb 关系)，这样就能拿到一个确定的全局 Snapshot==。但是这种 Snapshot Read ==不能保证完全的线性一致性 (linearizability)==，如下图中的节点 3 的 (2,2,0) 事件。
 
-![image-20221128010237431](https://littleneko.oss-cn-beijing.aliyuncs.com/img/image-20221128010237431.png)
+<img src="https://littleneko.oss-cn-beijing.aliyuncs.com/img/image-20221128010237431.png" alt="image-20221128010237431" style="zoom:67%;" />
 
 # CockroachDB and HLC
 
 CockroachDB 在每个事务启动时会在本地获取一个 HLC 时间 hlc.e 作为事务启动时间 (此行为可理解为 HLC 理论中的 Send or Local Event 操作) 并携带一个 MaxOffset (默认 500ms，意思是认为节点之间的物理时间偏差不会超过 500ms，该值可在节点启动时根据运行环境的时钟精度调整)。当事务消息发送到其他参与者节点之后更新参与者节点的本地 HLC 时间 (此行为可理解为 Receive Event 操作)，和参与者节点后续启动的事务产生关联关系 (hb 关联关系)。
 
-![image-20221128010206738](https://littleneko.oss-cn-beijing.aliyuncs.com/img/image-20221128010206738.png)
+<img src="https://littleneko.oss-cn-beijing.aliyuncs.com/img/image-20221128010206738.png" alt="image-20221128010206738" style="zoom: 67%;" />
 
-下面我们来看一下 CockroachDB 如何实现一个 Snapshot Read。CockroachDB 启动事务 e，做了一个假设：==认为当前物理时间 pt.e+MaxOffset 一定是当前系统的最大时间，发生在 pt.e+MaxOffset 之后的事务的物理时间一定大于当前事务 (根据 NTP 时间同步特性 ε ≥ |ptnode1 - ptnode2| 得出该假设成立)。==根据 HLC 的特性 ε ≥ |pt.e - l.e| ，可得推论：任意时刻当前集群的整体物理时间不可能超过 hlc.e+MaxOffset。那么当 CockroachDB 执行 Snapshot Read 的时候有：
+下面我们来看一下 CockroachDB 如何实现一个 Snapshot Read。CockroachDB 启动事务 e，做了一个假设：==认为当前物理时间 pt.e + MaxOffset 一定是当前系统的最大时间，发生在 pt.e + MaxOffset 之后的事务的物理时间一定大于当前事务 (根据 NTP 时间同步特性 ε ≥ |ptnode1 - ptnode2| 得出该假设成立)。==根据 HLC 的特性 ε ≥ |pt.e - l.e| ，可得推论：任意时刻当前集群的整体物理时间不可能超过 hlc.e + MaxOffset。那么当 CockroachDB 执行 Snapshot Read 的时候有（注：其中 e 事务是读事务）：
 
 1. 事务 g 满足 hlc.e + MaxOffset < hlc.g。根据特性 2 (对任一事件 e，一定有 l.e ≥ pt.e)，可得出：pt.e < pt.g，e hb g，事务 e 发生在 g 之前。
 
@@ -85,13 +83,13 @@ CockroachDB 在每个事务启动时会在本地获取一个 HLC 时间 hlc.e �
 
    在这种情况下 CockroachDB 无法拿到一个一致的 Snapshot，因此当前事务 e 必须 restart，等待时间足够长之后，获取一个新的时间戳 hlc.g +1 重新执行
 
-3. 事务 g 满足 hlc.g < hlc.e， 那么根据特性 5，直接执行 Snapshot Read。
+3. ==事务 g 满足 hlc.g < hlc.e， 那么根据特性 5，直接执行 Snapshot Read==。
 
 > **TIPS**:
 >
-> 1. hlc.e + MaxOffset 是当前系统的 hlc 上界，因此大于 hlc.e + MaxOffset 的事务一定发生在 e 之后，不能读到
+> 1. hlc.e + MaxOffset 是当前系统的 hlc 上界，因此大于 hlc.e + MaxOffset 的事务一定发生在 e 之后，不能读到。
 >
-> 2. CockroachDB 在 Snapshot Read 的时候，会把当前 Read 的 HLC 传播到其他节点，与其他节点建立 hb 关系。因此如果事务是在读事务 e 之后发生的，那么其 hlc 一定大于 hlc.e；反之一个事务的 hlc 小于 hlc.e，那么它一定是在 e 之前发生的。
+> 2. ==CockroachDB 在 Snapshot Read 的时候，会把当前 Read 的 HLC 传播到其他节点，与其他节点建立 hb 关系==。因此如果事务是在读事务 e 之后发生的，那么其 hlc 一定大于 hlc.e；反之一个事务的 hlc 小于 hlc.e，那么它一定是在 e 之前发生的。
 >
 > 3. 上面的条件是必要不充分条件，即：
 >
