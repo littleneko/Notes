@@ -121,7 +121,7 @@ class Transaction {
 
 > **Tips**:
 >
-> 1. Read 检查锁的范围是 [0, start_timestamp)，即如果有一个锁在大于 start_timestamp 的版本上，即比当前事务时间戳更大的事务在更新改行，那么本事务也是可以读的。
+> 1. Read 检查锁的范围是 [0, start_timestamp)，即如果有一个锁在大于 start_timestamp 的版本上，即比当前事务时间戳更大的事务在更新该行，那么本事务也是可以读的。
 >
 > 2. 读操作为什么要等锁？防止幻读
 >
