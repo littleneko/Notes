@@ -10,8 +10,10 @@
 - **可串行化调度 (serializable，或者称之为隔离调度)**: 调度等价于某个串行调度。
 ## Phenomena
 下面的定义中，A 和 P 分别表示:
-**P: broad interpretation**
-**A: strict interpretation**
+
+* **P: broad interpretation**
+* **A: strict interpretation**
+
 按正常的逻辑来理解，只需要 A 就已经够了，实际上 ANSI 的定义中使用的是 P，具体原因见下一节。
 
 ### P0 脏写 (Dirty Write)
@@ -19,21 +21,71 @@ T1 修改了某一份数据，T2 在 T1 COMMIT 或 ROLLBACK 之前也修改了�
 ```
 P0: w1[x]...w2[x]...((c1 or a1) [and (c2 or a2) in any order)]
 ```
+| Txn1      | Txn2      |
+| --------- | --------- |
+| `w(x, 1)` |           |
+|           | `w(x, 2)` |
+
 ### P1 脏读 (Dirty Read)
+
 T2 读了 T1 未 COMMIT 或 ROLLBACK 的数据，如果这时候 T1 ROLLBACK 了，那么 T2 读到的数据就是脏的。
+
 **WRITE → READ依赖**
 
 ```
 P1: w1[x]...r2[x]...((c1 or a1) [and (c2 or a2) in any order)]
 A1: w1[x]...r2[x]...(a1 and c2 in any order)
 ```
+| Txn1      | Txn2      |
+| --------- | --------- |
+|           | `w(x, 1)` |
+| `r(x, 1)` |           |
+| `commit`  | `abort`   |
+
+<center>Dirty Read 的严格解释</center>
+
+| Txn1      | Txn2      |
+| --------- | --------- |
+|           | `w(x, 1)` |
+| `r(x, 1)` |           |
+| `...`     | `...`     |
+
+<center>Dirty Read 的扩大解释</center>
+
 ### P2 不可重复读 (Non-RepeatableRead)
+
 在事务中 T1 读了数据，然后 T2 修改或删除了这份数据，等到 T1 再次读取时发现数据已经被更改了。
+
 ```
 P2: r1[x]...w2[x]...((c1 or a1) [and (c2 or a2) in any order)]
 A2: r1[x]...w2[x]...c2...r1[x]...c1
 ```
+Non-repeatable Read 指的是两次 item 类型的读操作读到了不同的数据。如例 9 所示，在严格解释下需要进行完整的两次读取；但是扩大解释则认为在一个事务读了某个 key 之后，如果读事务还没提交，有事务写这个 key 成功了就可能出现异常，换句话说，==读请求应该阻塞写请求==。图 4 解释了采用扩大解释的原因，因为 T1 对 x 的读取没能阻塞住 T2 对 x 的写入，导致之后读到了 T2 写入的 y，结果从 T1 观察到的结果来看，x + y = 140 破坏了约束。
+
+| Txn1      | Txn2      |
+| --------- | --------- |
+| `r(x, 1)` |           |
+|           | `w(x, 2)` |
+|           | `commit`  |
+| `r(x, 2)` |           |
+| `commimt` |           |
+
+<center>例 9 - Non-repeatable Read 的严格解释</center>
+
+| Txn1      | Txn2      |
+| --------- | --------- |
+| `r(x, 1)` |           |
+|           | `w(x, 2)` |
+| `...`     | `...`     |
+
+<center>例 10 - Non-repeatable Read 的扩大解释</center>
+
+<img src="https://littleneko.oss-cn-beijing.aliyuncs.com/img/4_1b183b38fc.png" alt="4" style="zoom: 50%;" />
+
+<center>图 4 - Non-repeatable Read 在扩大解释下的异常</center>
+
 ### P3 幻读 (Phantom)
+
 在事务中 T1 读取了满足某个条件的数据，然后 T2 插入了满足该条件的数据，T1 再次读取时发现多了数据。
 ```
 P3: r1[P]...w2[y in P]...((c1 or a1) [and (c2 or a2) any order)]
@@ -41,7 +93,25 @@ A3: r1[P]...w2[y in P]...c2...r1[P]...c1
 ```
 > **Tips**:
 >
-> 不可重复读和幻读的区别在于前者是读一条特定的行发现不一致，后者是读到新插入或删除的数据发现不一致
+> 不可重复读和幻读的区别在于前者读特定的某行数据发现不一致，后者是读到新插入或删除的数据发现不一致
+
+| Txn1              | Txn2      |
+| ----------------- | --------- |
+| `r(sum(x-y), 11)` |           |
+|                   | `w(x, 2)` |
+|                   | `commit`  |
+| `r(sum(x-y), 12)` |           |
+| `commit`          |           |
+
+<center>例 11 - Phantom 的严格解释（Phantom Read）</center>
+
+| Txn1              | Txn2      |
+| ----------------- | --------- |
+| `r(sum(x-y), 11)` |           |
+|                   | `w(x, 2)` |
+| `...`             | `...`     |
+
+<center>例 12 - Phantom 的扩大解释</center>
 
 ### P4 丢失更新 (Lost Update)
 
@@ -50,7 +120,22 @@ A3: r1[P]...w2[y in P]...c2...r1[P]...c1
 ```
 P4: r1[x]...w2[x]...w1[x]...c1
 ```
+写丢失指的是一个事务在尝试根据读到的数据进行写入之前，在其他事务上有另外的写入发生在了读写操作之间，并且成功提交，于是当这个事务继续进行的时候，就会将已经成功提交的写入覆盖掉的现象，造成写入丢失。在例 3 中，T1 和 T2 都需要把 x 的值加 1，T1 根据读到的值 10 将 11 写入，写入前，T2 也将 11 写入 x，在 Serializable 的情况下，最后 x 的值是 12，而此时因为丢失了一个事务的写入，x 的最终值是 11。注：根据论文的解释，T2 不一定需要被 commit，此处为了方便理解所以稍微改造了例子。
+
+| Txn1                 | Txn2          |
+| -------------------- | ------------- |
+| `r(x, 10)`           |               |
+|                      | `w(x, x + 1)` |
+|                      | `commit`      |
+| `w(x, x + 1) x = 10` |               |
+| `commit`             |               |
+
+<center>例 3 - Lost Update 的扩大解释</center>
+
+> **TIPS**: 注意 lost update 和 dirty write 的区别，lost update 是先读后写（由用户通过 SQL 先 SELECT，再根据 SELECT 的结果进行 INSERT/UPDATE，并不是直接通过 UPDATE SQL 语句来完成先读后写这个操作）
+
 ### P4C 游标丢失更新 (Cursor Lost Update)
+
 ```
 P4C: rc1[x]...w2[x]...w1[x]...c1
 ```
@@ -59,6 +144,18 @@ P4C: rc1[x]...w2[x]...w1[x]...c1
 ```
 A5A: r1[x]...w2[x]...w2[y]...c2...r1[y]...(c1 or a1)
 ```
+Read Skew 的现象是因为读到两个状态的数据，导致观察到了违反约束的结果，例 5 中的 x 和 y 的和应该等于 100，而在 T1 里，却读到了 x + y = 140，需要注意的是因为 Read Skew 现象中没有重复读取同一个 key，所以不属于 Non-repeatable Read。
+
+| Txn1       | Txn2       |
+| ---------- | ---------- |
+| `r(x, 50)` |            |
+|            | `w(x, 10)` |
+|            | `w(y, 90)` |
+|            | `commit`   |
+| `r(y, 90)` |            |
+
+<center>例 5 - Read Skew 的违反约束的现象</center>
+
 > **Tips**:
 >
 > e.g. 假设 a 和 b 必须满足一致性约束 a + b == 100，初始值 a = b = 50.
@@ -72,6 +169,20 @@ A5A: r1[x]...w2[x]...w2[y]...c2...r1[y]...(c1 or a1)
 ```
 A5B: r1[x]...r2[y]...w1[y]...w2[x]...(c1 and c2 occur)
 ```
+Write Skew 是两个事务在写操作上发生的异常，例 6 表示了 Write Skew 现象，即 T1 尝试把 x 的值赋给 y，T2 尝试把 y 的值赋给 x，如果这两个事务 Serializable 的执行，那么在结束之后 x 和 y 应该拥有一样的值，但是在 Write Skew 中，并发操作使得他们的值互换了。
+
+| Txn1       | Txn2       |
+| ---------- | ---------- |
+| `r(x, 10)` |            |
+|            | `r(y, 20)` |
+| `w(y, 10)` |            |
+|            | `w(x, 20)` |
+| `commit`   | `commit`   |
+| `r(x, 20)` |            |
+| `r(y, 10)` |            |
+
+<center>例 6 - Write Skew 的违反约束的现象</center>
+
 > **Tips**:
 >
 > e.g. 假设我们的约束是 x + y ≤ 100
@@ -81,6 +192,7 @@ A5B: r1[x]...r2[y]...w1[y]...w2[x]...(c1 and c2 occur)
 ### Broad Interpretation and Strict Interpretation
 
 **结论：ANSI Isolation 的定义应该基于 Broad Interpretation**
+
 下面的 H1、H2、H3 三个反例证明了这一点。
 
 - H1 虽然不违背 A1、A2、A3，但是会导致读到的数据不满足一致性 (x+y=100)
@@ -88,7 +200,19 @@ A5B: r1[x]...r2[y]...w1[y]...w2[x]...(c1 and c2 occur)
 H1: r1[x=50]w1[x=10]r2[x=10]r2[y=50]c2 r1[y=50]w1[y=90]c1
 ```
 
+| Txn1       | Txn2       |
+| ---------- | ---------- |
+| `r(x, 50)` |            |
+| `w(x, 10)` |            |
+|            | `r(x, 10)` |
+|            | `r(y, 50)` |
+|            | `commit`   |
+| `r(y, 50)` |            |
+| `w(y, 90)` |            |
+| commit     |            |
+
 - H2 不违背 A2，但是 T1 读到的数据同样会发现不满足一致性 (x+y=100)
+
 ```
 H2: r1[x=50]r2[x=50]w2[x=10]r2[y=50]w2[y=90]c2 r1[y=90]c1
 ```
