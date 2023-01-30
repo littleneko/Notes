@@ -12,33 +12,33 @@ Percolator 是 Google 的上一代分布式事务解决方案，构建在 BigTab
 
 1. 首先在所有行的写操作中选出一个作为 primary row，其他的为 secondary rows
 
-2. Prewrite Primary：对 primaryRow ==写入锁==（修改 meta key 加入一个标记），==锁中记录本次事务的开始时间戳==。上锁前会检查：
+2. Prewrite Primary：对 PrimaryRow ==写入锁==（修改 meta key 加入一个标记），==锁中记录本次事务的开始时间戳==。上锁前会检查：
 
    - 该行是否已经有别的客户端已经上锁 (Locking)
-   - 是否在本次事务开始时间之后，有更新 [startTs, +Inf) 的写操作已经提交 (Conflict)
+   - 是否在本次事务开始时间之后，有更新 `[startTs, +Inf)` 的写操作已经提交 (Conflict)
 
-   在这两种种情况下会返回事务冲突。否则，就成功上锁，将行的内容写入 row 中，版本设置为 startTs
+   在这两种种情况下会返回事务冲突。否则，就成功上锁，将行的内容写入 row 中，版本设置为 `startTs`
 
-3. 将 primaryRow 的锁上好了以后，进行 secondaries 的 prewrite 流程：
+3. 将 PrimaryRow 的锁上好了以后，进行 secondaries 的 prewrite 流程：
 
-   - 类似 primaryRow 的上锁流程，只不过锁的内容为事务开始时间 startTs 及 primaryRow 的信息
-   - 检查的事项同 primaryRow 的一致
+   - 类似 PrimaryRow 的上锁流程，只不过锁的内容为事务开始时间 startTs 及 PrimaryRow 的信息
+   - 检查的事项同 PrimaryRow 的一致
    - 当锁成功写入后，写入 row，时间戳设置为 startTs
 
 以上 Prewrite 流程任何一步发生错误，都会进行回滚：删除 meta 中的 Lock 标记 , 删除版本为 startTs 的数据。
 
-当 Prewrite 阶段完成以后，进入 Commit 阶段，当前时间戳为 commitTs，TSO 会保证 commitTs > startTs
+当 Prewrite 阶段完成以后，进入 Commit 阶段，当前时间戳为 `commitTs`，TSO 会保证 commitTs > startTs
 
 
 
 **Commit 的流程是，对应 2PC 的第二阶段**：
 
-1. commit primary: 写入 meta 添加一个新版本，时间戳为 commitTs，内容为 startTs, 表明数据的最新版本是 startTs 对应的数据
+1. commit primary：写入 meta 添加一个新版本，时间戳为 commitTs，内容为 startTs，表明数据的最新版本是 startTs 对应的数据
 2. 删除 Lock 标记
 
 值得注意的是，如果 primary row 提交失败的话，全事务回滚，回滚逻辑同 prewrite 失败的回滚逻辑。
 
-如果 commit primary 成功，则可以异步的 commit secondaries，流程和 commit primary 一致， 失败了也无所谓。Primary row 提交的成功与否标志着整个事务是否提交成功。
+如果 commit primary 成功，则可以异步的 commit secondaries，流程和 commit primary 一致， 失败了也无所谓，Primary row 提交的成功与否标志着整个事务是否提交成功。
 
 
 
@@ -51,7 +51,7 @@ Percolator 是 Google 的上一代分布式事务解决方案，构建在 BigTab
 
 
 
-通过 MVCC， TiKV 的事务默认隔离级别是 Repeatable Read（SI）, 也对外暴露显式的加锁的 API，用于为客户端实现 SELECT … FOR UPDATE 等隔离级别为 SSI 的语句。
+通过 MVCC， TiKV 的事务默认隔离级别是 Repeatable Read (SI), 也对外暴露显式的加锁的 API，用于为客户端实现 SELECT … FOR UPDATE 等隔离级别为 SSI 的语句。
 
 大家可以看到， 本质上 TiKV 的事务模型是基于 Percolator 的思想，但是对比原论文，做了很多工程上的优化，我们将原来论文中的 L 列和 W 列去掉，通过和MVCC 的 Meta 来存储相关的事务信息。
 
@@ -151,10 +151,10 @@ TiDB 在处理一个事务时，处理流程如下：
 2. 对带写入的 SQL 进行重放。
 3. 两阶段提交。
 
-细心如你可能会发现，我们这边只对写入的 SQL 进行回放，并没有提及读取 SQL。这个行为看似很合理，但是这个会引发其他问题：
+细心如你可能会发现，我们这边==只对写入的 SQL 进行回放，并没有提及读取 SQL==。这个行为看似很合理，但是这个会引发其他问题：
 
 1. start_ts 发生了变更，当前这个事务中，读到的数据与事务真正开始的那个时间发生了变化，写入的版本也是同理变成了重试时获取的 start_ts 而不是事务一开始时的那个。
-2. 如果当前事务中存在更新依赖于读到的数据，结果变得不可控。
+2. ==如果当前事务中存在更新依赖于读到的数据，结果变得不可控==。
 
 打开了重试后，我们来看下面的例子：
 
@@ -172,13 +172,13 @@ TiDB 在处理一个事务时，处理流程如下：
 
   * 重试时，重新取得新的 start_ts 为 t8’。
 
-  * 回放更新语句 update tidb set name='pd' where id =1 and status=1。 i. 发现当前版本 t8’下并不存在符合条件的语句，不需要更新。 ii. 没有数据更新，返回上层成功。
+  * 回放更新语句 update tidb set name='pd' where id =1 and status=1。 i. 发现当前版本 t8’ 下并不存在符合条件的语句，不需要更新。 ii. 没有数据更新，返回上层成功。
 
 * tidb 认为事务 1 重试成功，返回客户端成功。
 
 * session A 认为事务执行成功，查询结果，在不存在其他更新的情况下，发现数据与预想的不一致。
 
-这里我们可以看到，对于重试事务，如果本身事务中更新语句需要依赖查询结果时，因为重试时会重新取版本号作为 start_ts，因而无法保证事务原本的 ReadRepeatable 隔离型，结果与预测可能出现不一致。
+这里我们可以看到，==对于重试事务，如果本身事务中更新语句需要依赖查询结果时，因为重试时会重新取版本号作为 start_ts，因而无法保证事务原本的 ReadRepeatable 隔离型，结果与预测可能出现不一致==。
 
 # 悲观事务
 
@@ -204,7 +204,7 @@ if affected_rows > 0 {
 txn.Commit();
 ```
 
-大家注意下，第四行那个判断语句是直接通过上面的 UPDATE 语句返回的 affected_rows来决定到底是执行 A 路径还是 B 路径，但是聪明的朋友肯定看出问题了，在一个乐观事务模型的数据库上，在 COMMIT 执行之前，其实是并不知道最终 affected_rows到底是多少的，所以这里的值是没有意义的，程序有可能进入错误的处理流程。这个问题在只有乐观事务支持的数据库上几乎是无解的，需要在业务侧重试。
+大家注意下，第四行那个判断语句是直接通过上面的 UPDATE 语句返回的 affected_rows 来决定到底是执行 A 路径还是 B 路径，但是聪明的朋友肯定看出问题了，==在一个乐观事务模型的数据库上，在 COMMIT 执行之前，其实是并不知道最终 affected_rows 到底是多少的，所以这里的值是没有意义的==，程序有可能进入错误的处理流程。这个问题在只有乐观事务支持的数据库上几乎是无解的，需要在业务侧重试。
 
 这里的问题的本质是 MySQL 的协议支持可交互事务，但是 MySQL 并没有原生的乐观事务支持（MySQL InnoDB 的行锁可以认为是悲观锁），所以原生的 MySQL 在执行上面这条 UPDATE 的时候会先上锁，确认自己的 Update 能够完成才会继续，所以返回的 affected_rows 是正确的。
 

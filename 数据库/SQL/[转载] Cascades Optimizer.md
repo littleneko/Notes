@@ -20,7 +20,7 @@
 
 <img src="https://littleneko.oss-cn-beijing.aliyuncs.com/img/v2-539f7763f5be6392439afca301832915_1440w.jpg" alt="img" style="zoom:50%;" />
 
-但对于 Join 顺序的枚举来说则未必，这里将原本的 `(A JOIN B) JOIN C` 替换成 `(B JOIN C) JOIN A`，也许能带来收益。例如 A 有1000 条数据，B 有 100 条，C 有 10 条数据，三个表之间存在一定的 Join 谓词使得，`A JOIN B` 返回 10000 条数据，`B JOIN C` 返回 200 条数据；如果采用最朴素的 NestLoop，那么前一个执行计划需要处理 `1000 * 100 + 10000 * 10 = 200000` 次循环，而后一个执行计划则需要处理 `100 * 10 + 200 * 1000 = 200100` 次循环，因此前者会更优一点。
+但对于 Join 顺序的枚举来说则未必，这里将原本的 `(A JOIN B) JOIN C` 替换成 `(B JOIN C) JOIN A`，也许能带来收益。例如 A 有 1000 条数据，B 有 100 条，C 有 10 条数据，三个表之间存在一定的 Join 谓词使得，`A JOIN B` 返回 10000 条数据，`B JOIN C` 返回 200 条数据；如果采用最朴素的 NestLoop，那么前一个执行计划需要处理 `1000 * 100 + 10000 * 10 = 200000` 次循环，而后一个执行计划则需要处理 `100 * 10 + 200 * 1000 = 200100` 次循环，因此前者会更优一点。
 
 ## Cost & Heuristic
 
@@ -80,7 +80,7 @@
 
 在搜索过程中，每一层不需要保留所有的组合，而是保留代价最低的即可。但需要考虑到一个问题，两表 Join 的最优解，未必能得到三表 Join 的最优解，例如两表用了 HashJoin，那么输出的结果会是无序的；相比之下，如果用 MergeJoin，两表 Join 可能不是代价最小的， 但是在三表 Join 时，就可以利用其有序性，对上层的 Join 进行优化。
 
-为了刻画这个问题，引入了 Interesting Order，即上层对下层的输出结果的顺序感兴趣。因此自底向上枚举时，A JOIN B 不仅仅是保留代价最小的，还需要对每种 Interesting Order 的最小代价的 Join 进行保留。例如 `A JOIN B` 输出的顺序可能是 `(A.x), (A.x, B.y), (None)` 等多种可能性，就需要保留每种 Interesting Order。
+为了刻画这个问题，引入了 ==Interesting Order，即上层对下层的输出结果的顺序感兴趣==。因此自底向上枚举时，A JOIN B 不仅仅是保留代价最小的，还需要对每种 Interesting Order 的最小代价的 Join 进行保留。例如 `A JOIN B` 输出的顺序可能是 `(A.x), (A.x, B.y), (None)` 等多种可能性，就需要保留每种 Interesting Order。
 
 <img src="https://littleneko.oss-cn-beijing.aliyuncs.com/img/v2-56921cbe9bca56774d34ce8647dea63f_1440w.jpg" alt="img" style="zoom:50%;" />
 
@@ -155,11 +155,11 @@ PostgreSQL 实现的 Join 算法就是经典的自底向上的动态规划，上
 
 自顶向下的搜索过程中，整个搜索空间会形成一个 Operator Tree 的森林，因此很重要的一个问题是，如何高效地保存搜索状态。
 
-Cascades 首先将整个 Operator Tree 按节点拷贝到一个 **Memo** 的数据结构中，每个 Operator 放在一个 Group。对于有子节点的 Operator 来说，将原本对Operator 的直接引用，变成对 Group 的引用。例如上图的 Group 0，引用了 Group 1 和 Group 2。
+Cascades 首先将整个 Operator Tree 按节点拷贝到一个 **Memo** 的数据结构中，每个 Operator 放在一个 Group。==对于有子节点的 Operator 来说，将原本对 Operator 的直接引用，变成对 Group 的引用==。例如上图的 Group 0，引用了 Group 1 和 Group 2。
 
 ![img](https://littleneko.oss-cn-beijing.aliyuncs.com/img/v2-21d1e0ec3c0b1bb4c4d7a8eb5cf717c0_1440w.jpg)
 
-而每个 Group 中会存在多个成员，成员通常称之为 **Group Expression**。成员之间是逻辑等价的，也就意味着他们输出的结果是一样的。随着搜索过程的推进，对 Operator Tree 进行变换时会产生新的 Operator Tree，这些 Tree 仍然存储在 Memo 中。例如上图的的 Group1，既包含了初始的 Scan A，也包含了后续搜索产生的 TableScan、SortedIDXScan。由于 Group 引用的是其他 Group，这里可以视作形成了一个 Group Tree，例如上面的 Group 7 引用了 Group3、Group4，Group3 又是一个 Join 算子，引用了 Group1、Group2。
+而每个 Group 中会存在多个成员，成员通常称之为 **Group Expression**。成员之间是==逻辑等价==的，也就意味着他们输出的结果是一样的。随着搜索过程的推进，对 Operator Tree 进行变换时会产生新的 Operator Tree，这些 Tree 仍然存储在 Memo 中。例如上图的的 Group1，既包含了初始的 Scan A，也包含了后续搜索产生的 TableScan、SortedIDXScan。由于 Group 引用的是其他 Group，这里可以视作形成了一个 Group Tree，例如上面的 Group 7 引用了 Group3、Group4，Group3 又是一个 Join 算子，引用了 Group1、Group2。
 
 在搜索完成之后，我们可以从每个 Group 中选择出最优的 Operator，并递归构建其子节点，即可得到最优的 Operator Tree。	
 
@@ -171,11 +171,11 @@ Cascades 首先将整个 Operator Tree 按节点拷贝到一个 **Memo** 的数�
 
 
 
-在搜索过程中，需要对 Group Expression 的代价进行评估，而代价评估则依赖于统计信息。统计信息的构建是一个自底向上的过程，每个基表维护直方图等统计信息，向上可进一步推导出 Join 的统计信息。由于 Group 中的多个 Expression 是逻辑等价的，因此他们共享一个 statistics。这一过程称之为『Stats Derivation』。
+在搜索过程中，需要对 Group Expression 的代价进行评估，而代价评估则依赖于统计信息。==统计信息的构建是一个自底向上的过程，每个基表维护直方图等统计信息==，向上可进一步推导出 Join 的统计信息。由于 Group 中的多个 Expression 是逻辑等价的，因此他们共享一个 statistics，这一过程称之为『Stats Derivation』。
 
 ## Branch and bound
 
-前面提到自顶向下的搜索可以进行更多的剪枝，这里的原理是根据代价的 upper bound 剪枝。将最初的 Operator Tree 的代价计算其 lower bound 和 upper bound，之后的搜索过程中，如果还没搜索到最底层的节点，其代价已经超过了 upper bound，那么这个解决方案即可放弃，不会更优只会雪上加霜。
+前面提到自顶向下的搜索可以进行更多的剪枝，这里的原理是根据代价的 upper bound 剪枝。==将最初的 Operator Tree 的代价计算其 lower bound 和 upper bound，之后的搜索过程中，如果还没搜索到最底层的节点，其代价已经超过了 upper bound，那么这个解决方案即可放弃==，不会更优只会雪上加霜。
 
 理想情况下，这种剪枝能过滤掉很多不必要的搜索，但依赖于初始计划的代价。初始计划如果很糟糕，代价很大，对后续的搜索将无法发挥剪枝的作用。因此通常的优化器会在搜索之前进行称之为 Transformation/Rewrite/Normalize 的阶段，应用一些 Heuristic 的规则，预先对 Plan 进行优化，减小后面的搜索空间。
 
@@ -199,7 +199,7 @@ Cascades 首先将整个 Operator Tree 按节点拷贝到一个 **Memo** 的数�
 
 ## Property Enforcer
 
-前面提到 Interesting Order 的问题，在自顶向下的搜索过程中可以更加优雅地解决。这里讲 Interesting Order 的问题推广到 Property，在分布式数据库的场景下，Property 包含了数据分布的方式。例如分布式 HashJoin 要求两个表按 照 Hash 分布，如果不满足这个属性，则需要对数据进行一次重分布。
+前面提到 Interesting Order 的问题，在自顶向下的搜索过程中可以更加优雅地解决。这里讲 Interesting Order 的问题推广到 Property，在分布式数据库的场景下，Property 包含了数据分布的方式。例如分布式 HashJoin 要求两个表按照 Hash 分布，如果不满足这个属性，则需要对数据进行一次重分布。
 
 <img src="https://littleneko.oss-cn-beijing.aliyuncs.com/img/v2-aa35dccd5a93cfa0db73423508fa8c35_1440w.jpg" alt="img" style="zoom:67%;" />
 

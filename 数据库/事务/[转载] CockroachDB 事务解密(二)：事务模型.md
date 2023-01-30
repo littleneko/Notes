@@ -1,4 +1,4 @@
-CockroachDB 实现了一个无锁的乐观事务模型，事务冲突通过事务重启或者回滚尽快返回客户端，然后由客户端决策下一步如何处理。本文将重点解析CockroachDB 的乐观事务模型的实现。
+CockroachDB 实现了一个无锁的乐观事务模型，事务冲突通过事务重启或者回滚尽快返回客户端，然后由客户端决策下一步如何处理。本文将重点解析 CockroachDB 的乐观事务模型的实现。
 
 # MVCC（多版本并发控制）
 
@@ -29,11 +29,11 @@ CockroachDB 首先引入了一个全局事务表（全局事务表的数据亦�
 
 
 
-其次，事务写入的数据被封装成上文中提到的 WRITE INTENT。WRITE INTENT 中包含了指向当前事务记录的索引。事务初始状态是 PENDING，事务提交或者回滚只要修改事务记录的状态为 COMMITED 或者 ABORTED，然后返回结果给客户端即可。根据事务状态，遗留的 WRITE INTENT 会被异步清理：提交成功的数据则转换成前文中的多版本结构，被回滚则直接把 INTENT 清理掉。
+其次，事务写入的数据被封装成上文中提到的 WRITE INTENT，WRITE INTENT 中包含了指向当前事务记录的索引。事务初始状态是 PENDING，事务提交或者回滚只要修改事务记录的状态为 COMMITED 或者 ABORTED，然后返回结果给客户端即可。根据事务状态，遗留的 WRITE INTENT 会被异步清理：提交成功的数据则转换成前文中的多版本结构，被回滚则直接把 INTENT 清理掉。
 
 
 
-当其他记录遇到 WRITE INTENT时，根据 WRITE INTENT 中的事务记录索引信息反向查找事务记录：
+当其他记录遇到 WRITE INTENT 时，根据 WRITE INTENT 中的事务记录索引信息反向查找事务记录：
 
 1. 如果事务处于 PENDING 状态，则陷入写写冲突的场景，具体处理方式下文将详细解释；
 2. 如果事务处于 COMMITED 状态，则进一步根据事务中 HLC 时间决定是返回 INTENT 中的数据还是返回上一个版本的数据；
@@ -41,7 +41,7 @@ CockroachDB 首先引入了一个全局事务表（全局事务表的数据亦�
 
 
 
-同时，当前事务的协调者会为正在执行的事务记录保持心跳（通过定期刷新事务记录的 LastHeartbeat 字段）。即使出现事务协调者 down 掉，也不会出现事务残留的情况。
+同时，当前事务的协调者会为正在执行的事务记录保持心跳（通过定期刷新事务记录的 LastHeartbeat 字段），即使出现事务协调者 down 掉，也不会出现事务残留的情况。
 
 简而言之，CockroachDB 利用 WRITE INTENT 和事务记录二者结合，保证事务写入的数据要么一起提交成功，要么一起回滚，实现事务原子操作。
 
@@ -61,7 +61,7 @@ Snapshot 隔离级别解决了脏读、不可重复读、幻读，但是不能�
 
 ## Serializable Snapshot Isolation
 
-Serializable 隔离级别在 Snapshot 隔离级别的基础上进一步解决了 Write Skew 的问题，但是在多数据库系统中都不支持或者不建议使用 Serializable 隔离级别，最重要的原因是性能过于低下。CockroachDB 为了实现 Serializable 隔离级别进行了大量的优化，并且把默认隔离级别设置为 Serializable 隔离级别。CockroachDB 提供了一个高性能的 Serializable隔离级别。
+Serializable 隔离级别在 Snapshot 隔离级别的基础上进一步解决了 Write Skew 的问题，但是在多数据库系统中都不支持或者不建议使用 Serializable 隔离级别，最重要的原因是性能过于低下。CockroachDB 为了实现 Serializable 隔离级别进行了大量的优化，并且把默认隔离级别设置为 Serializable 隔离级别。CockroachDB 提供了一个高性能的 Serializable 隔离级别。
 
 
 
@@ -85,7 +85,7 @@ CockroachDB 通过如下约束来保证事务之间的冲突不会形成冲突�
 
 3. ==WR: R 只读比自身 Timestamp 小的最大的版本==：
 
-   MVCC机制保证 R 不会去读比自己 Timestamp 大的数据。其次若 R 遇到 Timstamp 比自身小但是未提交的 WRITE INTENT，比较二者之间的事务优先级，优先级低的事务被重启。
+   MVCC 机制保证 R 不会去读比自己 Timestamp 大的数据。其次若 R 遇到 Timstamp 比自身小但是未提交的 WRITE INTENT，比较二者之间的事务优先级，优先级低的事务被重启。
 
 4. ==WW:第二个 W 的 Timestamp 比第一个 W 的 Timestamp 大==：
 
