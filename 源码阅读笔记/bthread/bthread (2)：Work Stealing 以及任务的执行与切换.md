@@ -131,7 +131,7 @@ start_from_non_worker(bthread_t* __restrict tid,
 > 1. 这里调用 `TaskGroup::start_background()` 时 REMOTE 参数为 `true`，最终会调用 `TaskGroup::ready_to_run_remote()` 把任务加到 TaskGroup 远程队列的 `_remote_rq` 中。
 > 1. 函数 `get_or_new_task_control()` 在没有全局 TaskControl 时会创建一个，对应的情况是第一次创建 bthread 的场景。
 >
-> 所以说 `TaskGroup::start_background<REMOTE>()` 的 ==REMOTE 参数实际上表示了该 bthread 是由普通的 pthread 创建还是由 bthread 创建==。
+> 所以说 `TaskGroup::start_background<REMOTE>()` 的 ==REMOTE 参数实际上表示了该 bthread 是否在 worker 外部创建==。
 
 # Overview
 从上面新建 bthread 的流程中，我们看到了 bthread 中 3 个重要的类，分别为：
@@ -308,7 +308,7 @@ private:
 
 - **_cur_meta：** 该 TaskGroup 当前正在执行/将要执行的任务，在 bthread 切换时会重新赋值。
 - **_last_context_remained**：在 task_runner 中 执行用户函数前会先执行该函数，用于切出 bthread 重新入队等操作。
-- **_main_stack** 和 **_main_tid**：一个 pthread 会在 `TaskGroup::run_main_task()` 中执行 while 死循环，不断获取并执行 bthread 任务，一个 pthread 的执行流不是永远在 bthread 中，比如等待任务时，pthread 没有执行任何 bthread，执行流就是直接在 pthread 上。==可以将 pthread 在 “等待 bthread - 获取到bthread - 进入 bthread 执行任务函数之前” 这个过程也抽象成一个 bthread，称作一个 pthread 的 “调度bthread” 或者 “主 bthread”，它的 tid 和私有栈就是 _main_tid 和 _main_stack==。
+- **_main_stack** 和 **_main_tid**：一个 pthread 会在 `TaskGroup::run_main_task()` 中执行 while 死循环，不断获取并执行 bthread 任务，一个 pthread 的执行流不是永远在 bthread 中，比如等待任务时，pthread 没有执行任何 bthread，执行流就是直接在 pthread 上。==可以将 pthread 在 “等待 bthread - 获取到bthread - 进入 bthread 执行任务函数之前” 这个过程也抽象成一个 bthread，称作一个 pthread 的 “调度 bthread” 或者 “主 bthread”，它的 tid 和私有栈就是 _main_tid 和 _main_stack==。
 - **_rq**：pthread 1 在执行从自己私有的 TaskGroup中 取出的 bthread 1 时，==如果 bthread 1 执行过程中又创建了新的 bthread 2==，则 bthread 1 将 bthread 2 的 tid 压入 pthread 1 的 TaskGroup 的 _rq 队列中（`TaskGroup::ready_to_run()`）
 - **_remote_rq**：bthread 外部即 ==pthread 中开启一个 bthread，随机选取一个 TaskGroup 的 _remote_rq 队列放入其中==（`TaskGroup::ready_to_run_remote()`）。
 ### TaskGroup::init()
