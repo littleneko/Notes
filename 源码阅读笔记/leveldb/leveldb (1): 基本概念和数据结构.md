@@ -24,28 +24,28 @@ LevelDB 整体由以下 6 个模块构成：
 
 # 代码目录结构
 
-* **include/leveldb**：使用者需要的头文件，包含基本的接口，可以自定义的 comparator/env/cache，以及依赖的头文件。 
+* **include/leveldb**：使用者需要的头文件，包含基本的接口，可以自定义的 comparator/env/cache，以及依赖的头文件
 * **db**：主要逻辑的实现。
   * 接口的实现（db_impl/db_iter）
   * 内部结构的定义 （dbformat/memtable/skiplist/write_batch）
   * db 运行状态以及操作的包装 （version_set/version_edit）
   * log 格式相关（log/log_reader/log_writer）
   * filename 处理相 关（filename）
-  * sstable 相关（builder/table_cache）. 
+  * sstable 相关（builder/table_cache） 
 * **table**：sstable 相关的数据格式定义以及操作实现。 
   * 格式定义（format）
   * block 相关的操作（block/block_builder）
   * sstable 相关的操作 （table/table_builder）
   * 操作便利封装的复合 Iterator（two_level_iterator/ merger）
   * 优化 Iterator 的 wrapper（iterator_wrapper）
-* **port**：根据系统环境，为移植实现的锁/信号/原子操作/压缩相关，提供 posix/android。
+* **port**：根据系统环境，为移植实现的锁/信号/原子操作/压缩相关，提供 posix/android
 * **util**：提供的通用功能实现
   * memtable 使用的简单内存管理（arena）
   * LRU cache 的实现（cache）
   * comparator 的默认实现 （comparator）
   * 通用功能的实现（coding/crc32c/hash/random/MutexLock/logging）
   * leveldb 将文件/进程相关的操作封装成 Env，提供了默认的实现（env_posix）
-* **helper/memenv** 实现了一个简单的完全内存的文件系统，提供操作目录文件的接口。
+* **helper/memenv** 实现了一个简单的完全内存的文件系统，提供操作目录文件的接口
 
 # 基本概念
 
