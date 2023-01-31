@@ -132,7 +132,11 @@ P4: r1[x]...w2[x]...w1[x]...c1
 
 <center>例 3 - Lost Update 的扩大解释</center>
 
-> **TIPS**: 注意 lost update 和 dirty write 的区别，lost update 是先读后写（由用户通过 SQL 先 SELECT，再根据 SELECT 的结果进行 INSERT/UPDATE，并不是直接通过 UPDATE SQL 语句来完成先读后写这个操作）
+> **TIPS**: 注意 dirty write  和 lost update 的区别，lost update 是先读然后基于读的结果进行写操作，即 read-modify-write，而 dirty write 没有读的操作。在 MySQL 中 read-modify-write 有 3 种实现方法：
+>
+> 1. 先 SELECT 出数据，再根据 SELECT 的结果进行 UPDATE（在 RR 下会有 lost update）
+> 2. 先 SELECT FOR UPDATE，再根据 SELECT 的结果进行 UPDATE（在 RR 下不会有 lost update）
+> 3. 直接通过 UPDATE SET a = a + 1 实现（在 RR 下不会有 lost update）
 
 ### P4C 游标丢失更新 (Cursor Lost Update)
 
@@ -311,16 +315,17 @@ Snapshot Isolation 是一种特殊的隔离级别，无法准确的说到底处�
 
 > **Tips**:
 >
-> 不要将 MySQL 的隔离级别套用到上面的表格中，MySQL 的隔离级别并不严格遵守上表，比如 MySQL 的 RR 隔离级别下：
+> 不要将 MySQL 的隔离级别套用到上面的表格中，MySQL 的隔离级别并不严格遵守上表，比如 MySQL 的 REPEATABLE READ 隔离级别下：
 >
-> * 幻读：
+> * **Phantom**：
 >   * 快照读 (SELECT) ：不会出现幻读，由 MVCC 保证
 >   * 当前读 (SELECT FOR UPDATE/LOCK IN SHARE MODE, UPDATE, DELETE)：不会出现幻读，由 Next-Key Lock 保证
 >   * 两者混用，SELECT -> 其他事务写入并提交 -> UPDATE -> SELECT：由于第二个 UPDATE 是当前读，会更新到其他事务写入并提交的数据，然后再次使用 SELECT 快照读的时候会读到自己更新过的数据，出现幻读
-> * Lost Update：
->   * 使用原子更新（update set a = a + 1），SELECT FOR UPDATE 后再更新：不会出现 Lost Update
->   * 直接 SELECT（快照读）然后更新：会出现 Lost Update
-> * 写偏序：Possible，理由同上
+> * **Lost Update**：
+>   * 使用原子更新（`UPDATE SET a = a + 1`）不会出现 Lost Update
+>   * 使用锁（`SELECT FOR UPDATE`）后再根据 SELECT 的结果 UPDATE：不会出现 Lost Update
+>   * 直接 SELECT（快照读）然后基于 SELECT 的结果 UPDATE：会出现 Lost Update
+> * **Write Skew**：Possible，理由同上
 
 ## Q&A
 

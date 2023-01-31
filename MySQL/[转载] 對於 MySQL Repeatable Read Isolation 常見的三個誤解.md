@@ -48,14 +48,14 @@ WHERE name IN ("Alice", "Bob", "Carol");
 
 但是其實不是所有的 Write Skew 都可以用這種方法一勞永逸，每個 Write Skew 的情境都是不同的。當然直接改成 Serializable Isolation 就不會有 Write Skew 的發生，但是在不改變 Isolation Level 的情況下，為了避免 Write Skew，我們只能針對每種不同的 Write Skew 現象去設計不同的資料庫結構和 Query 方法，或是用 Materializing Conflicts 等技巧來防止 Write Skew 的發生。所以，在使用資料庫的 Isolation 功能時，我們必須先瞭解各個 Isolation Level 所有可能發生的 Conflict 和 Race Conditions，才有辦法在資料庫設計的階段就將這些因素考慮進去，避免後續的麻煩。
 
-\2. 另外一種比較暴力的方法就是使用 MySQL 的 Share Lock 或是 Exclusive Lock 指令，Block 住其它想更改資料的 Transaction，例如使用 MySQL 的 LOCK IN SHARE MODE 指令：
+2. 另外一種比較暴力的方法就是使用 MySQL 的 Share Lock 或是 Exclusive Lock 指令，Block 住其它想更改資料的 Transaction，例如使用 MySQL 的 LOCK IN SHARE MODE 指令：
 
 ```
 SELECT * FROM gamer LOCK IN SHARE MODE;UPDATE gamer SET credit = credit + 1
 WHERE score >= 740;COMMIT;
 ```
 
-\3. 最直接的方法是將 MySQL 設定為 [Serialzable Isolation](https://medium.com/@chester.yw.chu/複習資料庫的-isolation-level-與常見的五個-race-conditions-圖解-16e8d472a25c)，MySQL 就會自動為所有的 SELECT 都加上 LOCK IN SHARE MODE。
+3. 最直接的方法是將 MySQL 設定為 [Serialzable Isolation](https://medium.com/@chester.yw.chu/複習資料庫的-isolation-level-與常見的五個-race-conditions-圖解-16e8d472a25c)，MySQL 就會自動為所有的 SELECT 都加上 LOCK IN SHARE MODE。
 
 必須注意的是，不管是手動加 Lock 或是使用 Serialzable Isolation，都會影響到效能。尤其如果沒有為欄位做好 Index ，就有可能會造成 Full-Table-Lock，應該盡量避免使用。
 
@@ -84,7 +84,7 @@ UPDATE inventory SET quantity = quantity - 4
 WHERE item = A;
 ```
 
-\2. 使用 SHARE LOCK / EXCLUSIVE LOCK (不建議)
+2. 使用 SHARE LOCK / EXCLUSIVE LOCK (不建議)
 
 ```
 SELECT * FROM inventory FOR UPDATE;UPDATE inventory SET quantity = 6 WHERE item = A;COMMIT;
