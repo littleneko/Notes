@@ -21,7 +21,7 @@ def list_files(path=".", deep=0):
         else:
             if f.lower().endswith(".md") and deep != 0:
                 base_name = os.path.splitext(f)[0]
-                outputs.append(" " * 4 * deep + "1. [" + base_name + "](" + quote(fpath) + ")")
+                outputs.append(" " * 4 * deep + "* [" + base_name + "](" + quote(fpath) + ")")
 
 
 list_files()

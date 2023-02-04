@@ -2,7 +2,7 @@
 
 具体例子 [example](https://github.com/baidu/braft/tree/master/example)
 
-# 注册并且启动Server
+# 注册并且启动 Server
 
 braft 需要运行在具体的 brpc server 里面，你可以让 braft 和你的业务共享同样的端口，也可以将 braft 启动到不同的端口中。
 
