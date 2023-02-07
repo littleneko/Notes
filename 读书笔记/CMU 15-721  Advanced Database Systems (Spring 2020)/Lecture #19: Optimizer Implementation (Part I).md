@@ -224,7 +224,7 @@ Then iteratively construct a ==“left-deep” join tree== that minimizes the es
 
 <img src="https://littleneko.oss-cn-beijing.aliyuncs.com/img/image-20220323234248558.png" alt="image-20220323234248558" style="zoom:33%;" />
 
-三表 join：同理保留 const 最低的结果。
+三表 join：同理保留 cost 最低的结果。
 
 <img src="https://littleneko.oss-cn-beijing.aliyuncs.com/img/image-20220323234503498.png" alt="image-20220323234503498" style="zoom:33%;" />
 
