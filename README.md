@@ -157,6 +157,7 @@ Notes
         * [Lecture #11: Query Execution I](./%E8%AF%BB%E4%B9%A6%E7%AC%94%E8%AE%B0/CMU%2015-445%3A645%20Database%20Systems%20%28Fall%202021%29/Lecture%20%2311%3A%20Query%20Execution%20I.md)
         * [Lecture #12: Query Execution II](./%E8%AF%BB%E4%B9%A6%E7%AC%94%E8%AE%B0/CMU%2015-445%3A645%20Database%20Systems%20%28Fall%202021%29/Lecture%20%2312%3A%20Query%20Execution%20II.md)
         * [Lecture #13: Query Planning & Optimization I](./%E8%AF%BB%E4%B9%A6%E7%AC%94%E8%AE%B0/CMU%2015-445%3A645%20Database%20Systems%20%28Fall%202021%29/Lecture%20%2313%3A%20Query%20Planning%20%26%20Optimization%20I.md)
+        * [Lecture #14: Query Planning & Optimization II](./%E8%AF%BB%E4%B9%A6%E7%AC%94%E8%AE%B0/CMU%2015-445%3A645%20Database%20Systems%20%28Fall%202021%29/Lecture%20%2314%3A%20Query%20Planning%20%26%20Optimization%20II.md)
         * [Lecture #15: Concurrency Control Theory](./%E8%AF%BB%E4%B9%A6%E7%AC%94%E8%AE%B0/CMU%2015-445%3A645%20Database%20Systems%20%28Fall%202021%29/Lecture%20%2315%3A%20Concurrency%20Control%20Theory.md)
         * [Lecture #16: Two-Phase Locking](./%E8%AF%BB%E4%B9%A6%E7%AC%94%E8%AE%B0/CMU%2015-445%3A645%20Database%20Systems%20%28Fall%202021%29/Lecture%20%2316%3A%20Two-Phase%20Locking.md)
         * [Lecture #17: Timestamp Ordering Concurrency Control](./%E8%AF%BB%E4%B9%A6%E7%AC%94%E8%AE%B0/CMU%2015-445%3A645%20Database%20Systems%20%28Fall%202021%29/Lecture%20%2317%3A%20Timestamp%20Ordering%20Concurrency%20Control.md)
