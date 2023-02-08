@@ -217,22 +217,20 @@ Then iteratively construct a ==“left-deep” join tree== that minimizes the es
 
 <img src="https://littleneko.oss-cn-beijing.aliyuncs.com/img/image-20220323233020603.png" alt="image-20220323233020603" style="zoom:33%;" />
 
-两表 join：
-
-* Artist-Appears 和 Album-Appears 的 join 中，因为 hash-join 的 cost 比 sm-join 的 cost 更低，所以我们只保留 hash-join。
-* Appears-Album 的 join 中，sm-join 的 cost 比 hash-join 更低，我们保留 sm-join。
-
-<img src="https://littleneko.oss-cn-beijing.aliyuncs.com/img/image-20220323234248558.png" alt="image-20220323234248558" style="zoom:33%;" />
-
-三表 join：同理保留 cost 最低的结果。
-
-<img src="https://littleneko.oss-cn-beijing.aliyuncs.com/img/image-20220323234503498.png" alt="image-20220323234503498" style="zoom:33%;" />
-
-最后，选出所有 cost 最低的结果。
+1. 找出两表 join 的最优解：
+   * Artist-Appears 和 Album-Appears 的 join 中，因为 hash-join 的 cost 比 sm-join 的 cost 更低，所以我们只保留 hash-join
+   * Appears-Album 的 join 中，sm-join 的 cost 比 hash-join 更低，我们保留 sm-join
 
 
+<img src="https://littleneko.oss-cn-beijing.aliyuncs.com/img/2023-02-09_00-56.png" alt="2023-02-09_00-56" style="zoom:33%;" />
 
-<img src="https://littleneko.oss-cn-beijing.aliyuncs.com/img/image-20220323234609489.png" alt="image-20220323234609489" style="zoom:33%;" />
+2. 找出三表 join 的最优解：同理保留 cost 最低的结果
+
+<img src="https://littleneko.oss-cn-beijing.aliyuncs.com/img/2023-02-09_00-56_1.png" alt="2023-02-09_00-56_1" style="zoom:33%;" />
+
+3. 最后，选出所有 access path cost 最低的结果。
+
+<img src="https://littleneko.oss-cn-beijing.aliyuncs.com/img/2023-02-09_00-57.png" alt="2023-02-09_00-57" style="zoom:33%;" />
 
 
 
@@ -315,19 +313,19 @@ General purpose cost-based query optimizer, based on equivalence rules on algebr
 
 1. 枚举各种可能的 expression
 
-   <img src="https://littleneko.oss-cn-beijing.aliyuncs.com/img/image-20220324000433856.png" alt="image-20220324000433856" style="zoom:33%;" />
+   <img src="https://littleneko.oss-cn-beijing.aliyuncs.com/img/image-20230209005129058.png" alt="image-20230209005129058" style="zoom:33%;" />
 
 2. 从 top logical expression 开始，深度优先向下递归，考虑可能的 physical implementation rule，算子的不同物理实现会对下层的 logical expression 产生不同的 physical property 要求，在下图中，SM-JOIN 会对两个输入各自在 join key 上产生 order 属性，其输出可以产生 ARTIST.ID 的有序属性。
 
-   <img src="https://littleneko.oss-cn-beijing.aliyuncs.com/img/image-20220324000607608.png" alt="image-20220324000607608" style="zoom:33%;" />
+   <img src="https://littleneko.oss-cn-beijing.aliyuncs.com/img/image-20230209005240398.png" alt="image-20230209005240398" style="zoom:33%;" />
 
 3. Hash-Join 因为输出不满足 artist.id 有序，不能直接使用
 
-   <img src="https://littleneko.oss-cn-beijing.aliyuncs.com/img/image-20220324000927878.png" alt="image-20220324000927878" style="zoom:33%;" />
+   <img src="https://littleneko.oss-cn-beijing.aliyuncs.com/img/image-20230209005305009.png" alt="image-20230209005305009" style="zoom:33%;" />
 
 4. 虽然 Hash-Join 不满足 order 属性，但是可以通过 Enforcer 加上一个 Quicksort 来解决，不过 Quicksort + Hash-Join 的 cost 大于 前面已经找到的 SM-Join 了，根据 ==**branch-and-bound**== 规则直接丢弃掉。
 
-   <img src="https://littleneko.oss-cn-beijing.aliyuncs.com/img/image-20220324001217994.png" alt="image-20220324001217994" style="zoom:33%;" />
+   <img src="https://littleneko.oss-cn-beijing.aliyuncs.com/img/image-20230209005342444.png" alt="image-20230209005342444" style="zoom:33%;" />
 
 **Advantages**:
 
@@ -337,4 +335,4 @@ General purpose cost-based query optimizer, based on equivalence rules on algebr
 **Disadvantages**:
 
 * All equivalence classes are completely expanded to generate all possible logical operators before the optimization search.
-  * Not easy to modify predicates.
+* Not easy to modify predicates.
