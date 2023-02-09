@@ -145,11 +145,11 @@ This allows the optimizer to restrict the search space to a smaller set of expre
 
    <img src="https://littleneko.oss-cn-beijing.aliyuncs.com/img/image-20220324235451021.png" alt="image-20220324235451021" style="zoom:33%;" />
 
-5. 然后对所有的 Logical Expression 应用 Implementation Rule 得到一些 Physical Expression，然后我们得到 const 最小的 Physical Expression 是 [A] SM-Join [B]，把它记录到 hash table 中。
+5. 然后对所有的 Logical Expression 应用 Implementation Rule 得到一些 Physical Expression，然后我们得到 [AB] cost 最小的 Physical Expression 是 [A] SM-Join [B]，把它记录到 hash table 中。
 
    <img src="https://littleneko.oss-cn-beijing.aliyuncs.com/img/image-20220324235516499.png" alt="image-20220324235516499" style="zoom:33%;" />
 
-6. 搜索继续回到最上层，使用同样的方法找到 [C] const 最小的 Physical Expression
+6. 搜索继续回到最上层，使用同样的方法找到 [C] cost 最小的 Physical Expression
 
    <img src="https://littleneko.oss-cn-beijing.aliyuncs.com/img/image-20220324235550573.png" alt="image-20220324235550573" style="zoom:33%;" />
 

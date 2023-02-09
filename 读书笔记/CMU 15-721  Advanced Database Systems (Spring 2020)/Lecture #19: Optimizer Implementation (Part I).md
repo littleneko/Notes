@@ -4,7 +4,7 @@ For a given query, find a correct execution plan that has the lowest "cost".
 
 This is the part of a DBMS that is the hardest to implement well (proven to be ==NP-Complete==).
 
-No optimizer truly produces the "optimal" plan
+No optimizer truly produces the "optimal" plan:
 
 * Use ==estimation techniques== to guess real plan cost.
 * Use ==heuristics== to limit the search space.
@@ -34,7 +34,7 @@ Example: (A ⨝ (B ⨝ C)) = (B ⨝ (A ⨝ C))
 
 ---
 
-Query planning for OLTP queries is easy because they are sargable.
+Query planning for OLTP queries is easy because they are ==sargable== (Search Argument Able).
 
 * It is usually picking the best index with simple heuristics.
 * Joins are almost always on foreign key relationships with a small cardinality.
@@ -146,6 +146,8 @@ Define ==static rules== that transform logical operators to a physical plan.
 * Predicate/Limit/Projection pushdowns
 * Join ordering based on cardinality
 
+**Examples**: INGRES and Oracle (until mid 1990s).
+
 ---
 
 **Advantages**:
@@ -171,7 +173,7 @@ Use static rules to perform initial optimization. Then use ==dynamic programming
 * First cost-based query optimizer
 * ==**Bottom-up**== planning (forward chaining) using a ==divide-and-conquer== search method
 
-Examples: System R, early IBM DB2, most open-source DBMSs.
+**Examples**: System R, early IBM DB2, most open-source DBMSs.
 
 ---
 
@@ -185,7 +187,7 @@ Examples: System R, early IBM DB2, most open-source DBMSs.
 * Left-deep join trees are not always optimal.
 * ==Must take in consideration the physical properties of data in the cost model (e.g., sort order).==
 
-### Top-down vs. Bottom-up
+### Top-down vs. Bottom-up ⭐️
 
 **Top-down Optimization**
 
@@ -197,15 +199,12 @@ Examples: System R, early IBM DB2, most open-source DBMSs.
 * Start with nothing and then build up the plan to get to the outcome that you want.
 * Examples: System R, Starburst
 
-### Example (System R)
+### Bottom-up Example (System R)
 
-Break query up into blocks and generate the logical operators for each block.
-
-For each logical operator, generate a set of physical operators that implement it.
-
-* All combinations of join algorithms and access paths
-
-Then iteratively construct a ==“left-deep” join tree== that minimizes the estimated amount of work to execute the plan.
+1. Break query up into blocks and generate the **logical operators** for each block.
+2. For each logical operator, generate a set of **physical operators** that implement it.
+   * All combinations of join algorithms and access paths
+3. Then iteratively construct a ==“left-deep” join tree== that minimizes the estimated amount of work to execute the plan.
 
 > **Tips**:
 >
@@ -215,28 +214,32 @@ Then iteratively construct a ==“left-deep” join tree== that minimizes the es
 >
 >    <img src="https://littleneko.oss-cn-beijing.aliyuncs.com/img/image-20220323232859868.png" alt="image-20220323232859868" style="zoom:25%;" />
 
-<img src="https://littleneko.oss-cn-beijing.aliyuncs.com/img/image-20220323233020603.png" alt="image-20220323233020603" style="zoom:33%;" />
+1. 决定每个表的最优 access path
 
-1. 找出两表 join 的最优解：
+2. 列出所有可能的 join 顺序
+
+   <img src="https://littleneko.oss-cn-beijing.aliyuncs.com/img/image-20220323233020603.png" alt="image-20220323233020603" style="zoom:33%;" />
+
+3. 找出 2 表 join 的最优解：
+
    * Artist-Appears 和 Album-Appears 的 join 中，因为 hash-join 的 cost 比 sm-join 的 cost 更低，所以我们只保留 hash-join
+
    * Appears-Album 的 join 中，sm-join 的 cost 比 hash-join 更低，我们保留 sm-join
 
 
 <img src="https://littleneko.oss-cn-beijing.aliyuncs.com/img/2023-02-09_00-56.png" alt="2023-02-09_00-56" style="zoom:33%;" />
 
-2. 找出三表 join 的最优解：同理保留 cost 最低的结果
+4. 找出三表 join 的最优解：同理保留 cost 最低的结果
 
 <img src="https://littleneko.oss-cn-beijing.aliyuncs.com/img/2023-02-09_00-56_1.png" alt="2023-02-09_00-56_1" style="zoom:33%;" />
 
-3. 最后，选出所有 access path cost 最低的结果。
+5. 最后，选出所有 access path cost 最低的结果。
 
 <img src="https://littleneko.oss-cn-beijing.aliyuncs.com/img/2023-02-09_00-57.png" alt="2023-02-09_00-57" style="zoom:33%;" />
 
 
 
-但是 ==The query has ORDER BY on ARTIST.ID but the logical plans do not contain sorting properties.==
-
-如果在上面过程中，选择了 sm-join，就可以保证有序了。
+==But, the query has ORDER BY on ARTIST.ID but the logical plans do not contain sorting properties.== 因为在选择 cost 最低的 operator 的时候，并没有考虑 physical properties 即需要最终的结果按 ARTIST.ID 有序，如果在选择最优的 operator 的时候，保留了 artist 表的 sm-join，那么最终结果就是有序的了。
 
 ## Randomized Algorithms
 
