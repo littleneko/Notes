@@ -1,53 +1,53 @@
 # 事务模型
 
-Percolator 是 Google 的上一代分布式事务解决方案，构建在 BigTable 之上，在 Google 内部 用于网页索引更新的业务，原始的论文 [在此 ](http://research.google.com/pubs/pub36726.html)。原理比较简单，总体来说就是一个经过优化的二阶段提交的实现，进行了一个二级锁的优化。TiDB 的事务模型沿用了 Percolator 的事务模型。 
+Percolator 是 Google 的上一代分布式事务解决方案，构建在 BigTable 之上，在 Google 内部用于网页索引更新的业务，原始的论文 [在此 ](http://research.google.com/pubs/pub36726.html)。原理比较简单，总体来说就是一个经过优化的二阶段提交的实现，进行了一个二级锁的优化，TiDB 的事务模型沿用了 Percolator 的事务模型。 
 
 总体来说，TiKV 的读写事务分为两个阶段：1、Prewrite 阶段；2、Commit 阶段。
 
-客户端会缓存本地的写操作，在客户端调用 client.Commit() 时，开始进入分布式事务 prewrite 和 commit 流程。
+客户端会缓存本地的写操作，在客户端调用 `client.Commit()` 时，开始进入分布式事务 Prewrite 和 Commit 流程。
 
 
 
 **Prewrite 对应传统 2PC 的第一阶段**：
 
-1. 首先在所有行的写操作中选出一个作为 primary row，其他的为 secondary rows
+1. 首先在所有行的写操作中选出一个作为 PrimaryRow，其他的为 SecondaryRows
 
 2. Prewrite Primary：对 PrimaryRow ==写入锁==（修改 meta key 加入一个标记），==锁中记录本次事务的开始时间戳==。上锁前会检查：
 
    - 该行是否已经有别的客户端已经上锁 (Locking)
    - 是否在本次事务开始时间之后，有更新 `[startTs, +Inf)` 的写操作已经提交 (Conflict)
 
-   在这两种种情况下会返回事务冲突。否则，就成功上锁，将行的内容写入 row 中，版本设置为 `startTs`
+   在这两种种情况下会返回事务冲突，否则就成功上锁，将行的内容写入 row 中，版本设置为 `startTs`
 
-3. 将 PrimaryRow 的锁上好了以后，进行 secondaries 的 prewrite 流程：
+3. 将 PrimaryRow 的锁上好了以后，进行 secondaryRows 的 Prewrite 流程：
 
-   - 类似 PrimaryRow 的上锁流程，只不过锁的内容为事务开始时间 startTs 及 PrimaryRow 的信息
+   - 类似 PrimaryRow 的上锁流程，只不过锁的内容为事务开始时间 `startTs` 及 PrimaryRow 的信息
    - 检查的事项同 PrimaryRow 的一致
-   - 当锁成功写入后，写入 row，时间戳设置为 startTs
+   - 当锁成功写入后，写入 row，时间戳设置为 `startTs`
 
 以上 Prewrite 流程任何一步发生错误，都会进行回滚：删除 meta 中的 Lock 标记 , 删除版本为 startTs 的数据。
 
+
+
+**Commit 对应传统 2PC 的第二阶段**：
+
 当 Prewrite 阶段完成以后，进入 Commit 阶段，当前时间戳为 `commitTs`，TSO 会保证 commitTs > startTs
 
-
-
-**Commit 的流程是，对应 2PC 的第二阶段**：
-
-1. commit primary：写入 meta 添加一个新版本，时间戳为 commitTs，内容为 startTs，表明数据的最新版本是 startTs 对应的数据
+1. Commit Primary：写入 meta 添加一个新版本，时间戳为 `commitTs`，内容为 `startTs`，表明数据的最新版本是 startTs 对应的数据
 2. 删除 Lock 标记
 
-值得注意的是，如果 primary row 提交失败的话，全事务回滚，回滚逻辑同 prewrite 失败的回滚逻辑。
+值得注意的是，如果 Primary Row 提交失败的话，全事务回滚，回滚逻辑同 Prewrite 失败的回滚逻辑。
 
-如果 commit primary 成功，则可以异步的 commit secondaries，流程和 commit primary 一致， 失败了也无所谓，Primary row 提交的成功与否标志着整个事务是否提交成功。
+如果 Commit Primary 成功，则可以异步的 Commit SecondaryRows，流程和 Commit Primary 一致， 失败了也无所谓，PrimaryRow 提交的成功与否标志着整个事务是否提交成功。
 
 
 
 **事务中的读操作**：
 
 1. 检查该行是否有 Lock 标记，如果有，表示目前有其他事务正占用此行，如果这个锁已经超时则尝试清除，否则等待超时或者其他事务主动解锁。==注意此时不能直接返回老版本的数据，否则会发生幻读的问题==。
-2. 读取至 startTs 时该行最新的数据，方法是：读取 meta ，找出时间戳为 [0, startTs]，获取最大的时间戳 t，然后读取为于 t 版本的数据内容。
+2. 读取至 startTs 时该行最新的数据，方法是：读取 meta，找出时间戳为 `[0, startTs]`，获取最大的时间戳 t，然后读取为于 t 版本的数据内容。
 
-由于锁是分两级的，Primary 和 Seconary row，只要 Primary row 的锁去掉，就表示该事务已经成功提交，这样的好处是 Secondary 的 commit 是可以异步进行的，只是在异步提交进行的过程中，如果此时有读请求，可能会需要做一下锁的清理工作。因为即使 Secondary row 提交失败，也可以通过 Secondary row 中的锁，找到 Primary row，根据检查 Primary row 的 meta，确定这个事务到底是被客户端回滚还是已经成功提交。
+由于锁是分两级的，Primary 和 Seconary Row，只要 Primary Row 的锁去掉，就表示该事务已经成功提交，这样的好处是 Secondary 的 Commit 是可以异步进行的，只是在异步提交进行的过程中，如果此时有读请求，可能会需要做一下锁的清理工作。因为即使 Secondary Row 提交失败，也可以通过 Secondary Row 中的锁，找到 Primary Row，根据检查 Primary Row 的 meta，确定这个事务到底是被客户端回滚还是已经成功提交。
 
 
 
@@ -61,7 +61,7 @@ Percolator 是 Google 的上一代分布式事务解决方案，构建在 BigTab
 
 <img src="https://littleneko.oss-cn-beijing.aliyuncs.com/img/1_b7759a4dac.png" alt="img" style="zoom: 67%;" />
 
-TiDB 在处理一个事务时，处理流程如下：
+**TiDB 在处理一个事务时，处理流程如下**：
 
 1. 客户端 begin 了一个事务。
 
@@ -75,17 +75,17 @@ TiDB 在处理一个事务时，处理流程如下：
 
 3. 客户端发起写请求。
 
-   a. TiDB 对写入数据进行校验，如数据类型是否正确、是否符合唯一索引约束等，确保新写入数据事务符合一致性约束，**将检查通过的数据存放在内存里**。
+   a. ==TiDB 对写入数据进行校验，如数据类型是否正确、是否符合唯一索引约束等，确保新写入数据事务符合一致性约束==，**将检查通过的数据存放在内存里**。
 
 4. 客户端发起 commit。
 
 5. TiDB 开始两阶段提交将事务原子地提交，数据真正落盘。
 
-   a. TiDB 从当前要写入的数据中选择一个 Key 作为当前事务的 Primary Key。
+   a. TiDB 从当前要写入的数据中选择一个 Key 作为当前事务的 Primary Row。
 
    b. TiDB 从 PD 获取所有数据的写入路由信息，并将所有的 Key 按照所有的路由进行分类。
 
-   c. TiDB 并发向所有涉及的 TiKV 发起 prewrite 请求，TiKV 收到 prewrite 数据后，检查数据版本信息是否存在冲突、过期，符合条件给数据加锁。
+   c. TiDB 并发向所有涉及的 TiKV 发起 prewrite 请求，TiKV 收到 prewrite 数据后，==检查数据版本信息是否存在冲突、过期，符合条件给数据加锁==。
 
    d. TiDB 收到所有的 prewrite 成功。
 
@@ -101,11 +101,17 @@ TiDB 在处理一个事务时，处理流程如下：
 
 
 
-缺点如下：
+**缺点如下**：
 
 * 两阶段提交，网络交互多。
 * 需要一个中心化的版本管理服务。
 * 事务在 commit 之前，数据写在内存里，数据过大内存就会暴涨。
+
+
+
+> **TIPS**:
+>
+> 关于唯一性约束检查：在上面的描述中，TiDB 是在客户端写入数据的时候在 TiDB 层检查的，在 OCC 事物模型中，这里的检查只是对 snapshot 版本进行检查并且不会加锁。如果检查的时候没有违反唯一性约束，但是等到事物提交的时候，如果这个 Key 已经被其他事物写入了，那么因为这行数据的在 [start_ts, commit_ts] 之间已经被修改过了，因此在 prewrite 阶段会检测出版本冲突。
 
 
 
@@ -212,10 +218,10 @@ txn.Commit();
 
 TiDB 悲观锁复用了乐观锁的两阶段提交逻辑，重点在 DML 执行时做了改造。在两阶段提交之前增加了 Acquire Pessimistic Lock 阶段，简要步骤如下：
 
-<img src="https://littleneko.oss-cn-beijing.aliyuncs.com/img/0f9d1887996012ca6591cb85cd77939fd1fc609e_2_1380x628.jpeg" alt="image" style="zoom:50%;" />
+<img src="https://littleneko.oss-cn-beijing.aliyuncs.com/img/0f9d1887996012ca6591cb85cd77939fd1fc609e_2_1380x628.jpeg" alt="image" style="zoom: 33%;" />
 
 - 【与乐观锁共用】TiDB 收到来自客户端的 begin 请求，获取当前版本号作为本事务的 StartTS
-- TiDB 收到来自客户端的更新数据的请求: TiDB 向 TiKV 发起加悲观锁请求，该锁持久化到 TiKV。
+- ==TiDB 收到来自客户端的更新数据的请求: TiDB 向 TiKV 发起加悲观锁请求，该锁持久化到 TiKV==。
 - 【与乐观锁共用】client 发起 commit ，TiDB 开始执行与乐观锁一样的两阶段提交。
 
 有了以上大致的印象后，我们具体来看看悲观锁事务的执行流程细节：
@@ -224,9 +230,9 @@ TiDB 悲观锁复用了乐观锁的两阶段提交逻辑，重点在 DML 执行�
 
 悲观锁只有一个地方有区别，即如上图红色框内，在 TiDB 收到写入请求后，TiDB 按照如下方式开始加锁：
 
-1. 从 PD 获取当前 tso 作为当前锁的 for_update_ts
+1. 从 PD 获取当前 tso 作为当前锁的 `for_update_ts`
 2. TiDB 将写入信息写入 TiDB 的内存中（与乐观锁相同）
-3. 使用 for_update_ts 并发地对所有涉及到的 Key 发起加悲观锁（acquire pessimistic lock）请求
+3. 使用 `for_update_ts` 并发地对所有涉及到的 Key 发起加悲观锁（acquire pessimistic lock）请求
 4. 如果加锁成功，TiDB 向客户端返回写成功的请求
 5. 如果加锁失败
 6. 如果遇到 Write Conflict， 重新回到步骤 1 直到加锁成功。
@@ -241,9 +247,9 @@ TiDB 悲观锁复用了乐观锁的两阶段提交逻辑，重点在 DML 执行�
   - 如果表的主键不是自增 ID，跟索引一样处理，加锁。
 - 删除（Delete）
   - RowID 加锁
-- 更新 (update)
+- 更新（update）
   - 对旧数据的 RowID 加锁
-  - 如果用户更新了 RowID, 加锁新的 RowID
+  - 如果用户更新了 RowID，加锁新的 RowID
   - 对更新后数据的唯一索引都加锁
 
 ## 如何加悲观锁
@@ -253,12 +259,12 @@ TiDB 悲观锁复用了乐观锁的两阶段提交逻辑，重点在 DML 执行�
 - 检查 TiKV 中锁情况，如果发现有锁
   - 不是当前同一事务的锁，返回 KeyIsLocked Error
   - 锁的类型不是悲观锁，返回锁类型不匹配（意味该请求已经超时）
-  - 如果发现 TiKV 里锁的 for_update_ts 小于当前请求的 for_update_ts(同一个事务重复更新)， 使用当前请求的 for_update_ts 更新该锁
+  - 如果发现 TiKV 里锁的 `for_update_ts` 小于当前请求的 `for_update_ts` (同一个事务重复更新)， 使用当前请求的 `for_update_ts` 更新该锁
   - 其他情况，为重复请求，直接返回成功
 - 检查是否存在更新的写入版本，如果有写入记录
-  - 若已提交的 commit_ts 比当前的 for_update_ts 更新，说明存在冲突，返回 WriteConflict Error
+  - 若已提交的 `commit_ts` 比当前的 `for_update_ts` 更新，说明存在冲突，返回 WriteConflict Error
   - 如果已提交的数据是当前事务的 Rollback 记录，返回 PessimisticLockRollbacked 错误
-  - 若已提交的 commit_ts 比当前事务的 start_ts 更新，说明在当前事务 begin 后有其他事务提交过
+  - 若已提交的 `commit_ts` 比当前事务的 `start_ts` 更新，说明在当前事务 begin 后有其他事务提交过
     - 检查历史版本，如果发现当前请求的事务有没有被 Rollback 过，返回 PessimisticLockRollbacked 错误
 - 给当前请求 key 加上悲观锁，并返回成功
 

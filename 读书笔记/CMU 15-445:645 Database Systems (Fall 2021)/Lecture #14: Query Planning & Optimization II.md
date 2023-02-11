@@ -110,7 +110,8 @@ As the number of joins increases, the number of alternative plans grows rapidly.
 
 ==*Dynamic programming*== can be used to reduce the number of cost estimations.
 
-<img src="https://littleneko.oss-cn-beijing.aliyuncs.com/img/image-20230209003637276.png" alt="image-20230209003637276" style="zoom:15%;" /><img src="https://littleneko.oss-cn-beijing.aliyuncs.com/img/image-20230209003709362.png" alt="image-20230209003709362" style="zoom:15%;" /><img src="https://littleneko.oss-cn-beijing.aliyuncs.com/img/image-20230209003803116.png" alt="image-20230209003803116" style="zoom:15%;" /><img src="https://littleneko.oss-cn-beijing.aliyuncs.com/img/image-20230209003824583.png" alt="image-20230209003824583" style="zoom:15%;" /><img src="https://littleneko.oss-cn-beijing.aliyuncs.com/img/image-20230209003853982.png" alt="image-20230209003853982" style="zoom:15%;" /><img src="https://littleneko.oss-cn-beijing.aliyuncs.com/img/image-20230209003922645.png" alt="image-20230209003922645" style="zoom:15%;" />
+<img src="https://littleneko.oss-cn-beijing.aliyuncs.com/img/021200101805_01.png" alt="021200101805_01" style="zoom: 15%;" />
+
 
 ### Candidate Plans
 
