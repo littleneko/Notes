@@ -156,7 +156,7 @@ An application cannot rely on these IDs to mean anything.
 
 > **Tips**:
 >
-> 为什么读的时候是逆序扫描而不是顺序扫描，正常来说需要从头顺序扫描才能重建一条记录。逆序扫描的好处是对于 delete 和 insert 的记录友好，扫描到这两种记录的时候就不需要再向前扫了。
+> 一般来说需要从头顺序扫描才能重建一条记录，为什么读的时候是逆序扫描而不是顺序扫描？逆序扫描的好处是对于 delete 和 insert 的记录友好，扫描到这两种记录的时候就不需要再向前扫了。
 
 #### Indexes
 

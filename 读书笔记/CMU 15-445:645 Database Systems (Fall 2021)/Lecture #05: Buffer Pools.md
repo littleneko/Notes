@@ -161,6 +161,4 @@ There are two methods to handling pages with dirty bits. The fastest option is t
 
 These two methods illustrate the trade-off between fast evictions versus dirty writing pages that will not be read again in the future.
 
-* One way to avoid the problem of having to write out pages unnecessarily is background writing. Through background
-  writing, the DBMS can periodically walk through the page table and write dirty pages to disk. When a dirty page is
-  safely written, the DBMS can either evict the page or just unset the dirty flag.
+* One way to avoid the problem of having to write out pages unnecessarily is background writing. Through background writing, the DBMS can periodically walk through the page table and write dirty pages to disk. When a dirty page is safely written, the DBMS can either evict the page or just unset the dirty flag.

@@ -122,11 +122,7 @@ Two schedules are ==*conflict equivalent*== if they involve the same operations 
 
 One can verify that a schedule is conflict serializable by **swapping non-conflicting operations** until a serial schedule is formed. 
 
-<img src="https://littleneko.oss-cn-beijing.aliyuncs.com/img/image-20220312225451080.png" alt="image-20220312225451080" style="zoom:25%;" />
-
-<img src="https://littleneko.oss-cn-beijing.aliyuncs.com/img/image-20220312225522338.png" alt="image-20220312225522338" style="zoom:25%;" />
-
-<img src="https://littleneko.oss-cn-beijing.aliyuncs.com/img/image-20220312225543016.png" alt="image-20220312225543016" style="zoom:25%;" />
+<img src="https://littleneko.oss-cn-beijing.aliyuncs.com/img/021223503186_01.png" alt="img" style="zoom:25%;" />
 
 <img src="https://littleneko.oss-cn-beijing.aliyuncs.com/img/image-20220312225608454.png" alt="image-20220312225608454" style="zoom:25%;" />
 
@@ -140,13 +136,11 @@ For schedules with many transactions, this becomes too expensive. A better way t
 
 In a dependency graph, each transaction is a node in the graph. There exists a directed edge from node T~i~ to T~j~ if an operation O~i~ from T~i~ conflicts with an operation O~j~ from T~j~ and O~i~ occurs before O~j~ in the schedule. Then, a schedule is conflict serializable iff the dependency graph is acyclic.
 
-<img src="https://littleneko.oss-cn-beijing.aliyuncs.com/img/image-20220312225848440.png" alt="image-20220312225848440" style="zoom:25%;" />
+<img src="https://littleneko.oss-cn-beijing.aliyuncs.com/img/image-20220312225848440.png" alt="image-20220312225848440" style="zoom:20%;" />
 
-<img src="https://littleneko.oss-cn-beijing.aliyuncs.com/img/image-20220312225826292.png" alt="image-20220312225826292" style="zoom:25%;" />
+<img src="https://littleneko.oss-cn-beijing.aliyuncs.com/img/image-20220312225826292.png" alt="image-20220312225826292" style="zoom:20%;" />
 
-<img src="https://littleneko.oss-cn-beijing.aliyuncs.com/img/image-20220312230108824.png" alt="image-20220312230108824" style="zoom:25%;" />
-
-<img src="https://littleneko.oss-cn-beijing.aliyuncs.com/img/image-20220312230131781.png" alt="image-20220312230131781" style="zoom:25%;" />
+![img](https://littleneko.oss-cn-beijing.aliyuncs.com/img/021223520596_01.png)
 
 ## View Serializability
 
@@ -158,9 +152,7 @@ Schedules S~1~ and S~2~ are view equivalent if:
 * If T~1~ reads value of A written by T~2~ in S~1~, then T~1~ also reads value of A written by T~2~ in S~2~.
 * If T~1~ writes final value of A in S~1~, then T~1~ also writes final value of A in S~2~.
 
-<img src="https://littleneko.oss-cn-beijing.aliyuncs.com/img/image-20220312230746396.png" alt="image-20220312230746396" style="zoom:25%;" />
-
-<img src="https://littleneko.oss-cn-beijing.aliyuncs.com/img/image-20220312230838772.png" alt="image-20220312230838772" style="zoom:25%;" />
+![img](https://littleneko.oss-cn-beijing.aliyuncs.com/img/021223532057_01.png)
 
 # ACID: Durability
 

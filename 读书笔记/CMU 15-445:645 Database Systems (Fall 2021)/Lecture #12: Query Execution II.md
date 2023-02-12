@@ -46,7 +46,7 @@ There are three different process models that a DBMS may adopt: process per work
 
 **Examples**: IBM DB2, Postgres, Oracle
 
-![image-20220306222156311](https://littleneko.oss-cn-beijing.aliyuncs.com/img/image-20220306222156311.png)
+<img src="https://littleneko.oss-cn-beijing.aliyuncs.com/img/image-20220306222156311.png" alt="image-20220306222156311" style="zoom: 25%;" />
 
 An advantage of the process per worker approach is that a process crash doesn’t disrupt the whole system because each worker runs in the context of its own OS process.
 
@@ -61,7 +61,7 @@ A worker uses any free process from the pool.
 
 **Examples**: IBM DB2, Postgres (2015)
 
-![image-20220306222452327](https://littleneko.oss-cn-beijing.aliyuncs.com/img/image-20220306222452327.png)
+<img src="https://littleneko.oss-cn-beijing.aliyuncs.com/img/image-20220306222452327.png" alt="image-20220306222452327" style="zoom: 25%;" />
 
 Like process per worker, the process pool also relies on the OS scheduler and shared memory.
 
@@ -77,7 +77,7 @@ Single process with ==multiple worker **threads**==.
 
 Examples: IBM DB2, MSSQL, MySQL, Oracle (2014)
 
-![image-20220306222639064](https://littleneko.oss-cn-beijing.aliyuncs.com/img/image-20220306222639064.png)
+<img src="https://littleneko.oss-cn-beijing.aliyuncs.com/img/image-20220306222639064.png" alt="image-20220306222639064" style="zoom: 25%;" />
 
 Using multi-threaded architecture provides certain advantages. 
 
@@ -112,7 +112,7 @@ Parallel algorithms exist for every relational operator. The DBMS can either hav
 
 Within intra-query parallelism, there are three types of parallelism: ==intra-operator==, ==inter-operator==, and ==bushy==. These approaches are not mutually exclusive. It is the DBMS’ responsibility to combine these techniques in a way that optimizes performance on a given workload.
 
-![image-20220306223349731](https://littleneko.oss-cn-beijing.aliyuncs.com/img/image-20220306223349731.png)
+<img src="https://littleneko.oss-cn-beijing.aliyuncs.com/img/image-20220306223349731.png" alt="image-20220306223349731" style="zoom: 25%;" />
 
 ## Intra-Operator Parallelism (Horizontal)
 
@@ -120,7 +120,7 @@ In *intra-operator parallelism*, the query plan’s operators are decomposed int
 
 The DBMS inserts an ==*exchange*== operator into the query plan to coalesce results from child operators. The exchange operator prevents the DBMS from executing operators above it in the plan until it receives all of the data from the children. An example of this is shown in Figure 4.
 
-![image-20220306223956626](https://littleneko.oss-cn-beijing.aliyuncs.com/img/image-20220306223956626.png)
+<img src="https://littleneko.oss-cn-beijing.aliyuncs.com/img/image-20220306223956626.png" alt="image-20220306223956626" style="zoom:33%;" />
 
 In general, there are three types of exchange operators:
 
@@ -128,9 +128,9 @@ In general, there are three types of exchange operators:
 * **Repartition**: Reorganize multiple input streams across multiple output streams. This allows the DBMS take inputs that are partitioned one way and then redistribute them in another way.
 * **Distribute**: Split a single input stream into multiple output streams.
 
-<img src="https://littleneko.oss-cn-beijing.aliyuncs.com/img/image-20220306223852059.png" alt="image-20220306223852059" style="zoom:33%;" />
+<img src="https://littleneko.oss-cn-beijing.aliyuncs.com/img/image-20220306223852059.png" alt="image-20220306223852059" style="zoom: 25%;" />
 
-![image-20220306224045637](https://littleneko.oss-cn-beijing.aliyuncs.com/img/image-20220306224045637.png)
+<img src="https://littleneko.oss-cn-beijing.aliyuncs.com/img/image-20220306224045637.png" alt="image-20220306224045637" style="zoom: 25%;" />
 
 ## Inter-Operator Parallelism (Vertical)
 
@@ -138,7 +138,7 @@ In *inter-operator parallelism*, the DBMS overlaps operators in order to pipelin
 
 This approach is widely used in *stream processing systems*, which are systems that continually execute a query over a stream of input tuples.
 
-![image-20220306224309728](https://littleneko.oss-cn-beijing.aliyuncs.com/img/image-20220306224309728.png)
+<img src="https://littleneko.oss-cn-beijing.aliyuncs.com/img/image-20220306224309728.png" alt="image-20220306224309728" style="zoom: 33%;" />
 
 ## Bushy Parallelism
 
@@ -146,7 +146,7 @@ Bushy parallelism is a hybrid of intra-operator and inter-operator parallelism w
 
 The DBMS still uses exchange operators to combine intermediate results from these segments. An example is shown in Figure 6.
 
-![image-20220306224734146](https://littleneko.oss-cn-beijing.aliyuncs.com/img/image-20220306224734146.png)
+<img src="https://littleneko.oss-cn-beijing.aliyuncs.com/img/image-20220306224734146.png" alt="image-20220306224734146" style="zoom:33%;" />
 
 #  I/O Parallelism
 
@@ -158,9 +158,9 @@ To get around this, DBMSs use I/O parallelism to *split installation across mult
 
 In multi-disk parallelism, the OS/hardware is configured to store the DBMS’s files across multiple storage devices. This can be done through storage appliances or RAID configuration. All of the storage setup is transparent to the DBMS so workers cannot operate on different devices because the DBMS is unaware of the underlying parallelism.
 
-<img src="https://littleneko.oss-cn-beijing.aliyuncs.com/img/image-20220306225046510.png" alt="image-20220306225046510" style="zoom:25%;" />
+<img src="https://littleneko.oss-cn-beijing.aliyuncs.com/img/image-20220306225046510.png" alt="image-20220306225046510" style="zoom: 20%;" />
 
-<img src="https://littleneko.oss-cn-beijing.aliyuncs.com/img/image-20220306225106274.png" alt="image-20220306225106274" style="zoom:25%;" />
+<img src="https://littleneko.oss-cn-beijing.aliyuncs.com/img/image-20220306225106274.png" alt="image-20220306225106274" style="zoom:20%;" />
 
 ## Database Partitioning
 
@@ -172,8 +172,8 @@ The two approaches to partitioning are vertical and horizontal partitioning.
 
 In ==*vertical partitioning*==, a table’s attributes are stored in a separate location (like a column store). The tuple information must be stored in order to reconstruct the original record.
 
-![image-20220306225332788](https://littleneko.oss-cn-beijing.aliyuncs.com/img/image-20220306225332788.png)
+<img src="https://littleneko.oss-cn-beijing.aliyuncs.com/img/image-20220306225332788.png" alt="image-20220306225332788" style="zoom: 25%;" />
 
 In ==*horizontal partitioning*==, the tuples of a table are divided into disjoint segments based on some partitioning keys. There are different ways to decide how to partition (e.g., hash, range, or predicate partitioning). The efficacy of each approach depends on the queries.
 
-![image-20220306225350080](https://littleneko.oss-cn-beijing.aliyuncs.com/img/image-20220306225350080.png)
+<img src="https://littleneko.oss-cn-beijing.aliyuncs.com/img/image-20220306225350080.png" alt="image-20220306225350080" style="zoom:25%;" />

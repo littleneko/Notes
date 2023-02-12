@@ -117,9 +117,7 @@ When a transaction modifies a page, the DBMS copies the original page to a separ
 
 <center>(2) 写回 page2 时 crash 了</center>
 
-<img src="https://littleneko.oss-cn-beijing.aliyuncs.com/img/image-20220316001232524.png" alt="image-20220316001232524" style="zoom:25%;" />
-
-<img src="https://littleneko.oss-cn-beijing.aliyuncs.com/img/image-20220316001254584.png" alt="image-20220316001254584" style="zoom:25%;" />
+<img src="https://littleneko.oss-cn-beijing.aliyuncs.com/img/021223592303_01.png" alt="img" style="zoom: 25%;" />
 
 <center>(3) recovery 时先从 journal file 中读出所有的 page，然后再写回 disk</center>
 

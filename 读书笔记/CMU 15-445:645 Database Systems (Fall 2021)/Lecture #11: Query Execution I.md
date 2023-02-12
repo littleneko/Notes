@@ -106,7 +106,7 @@ In an index scan, the DBMS picks an index to find the tuples that a query needs.
 
 More advanced DBMSs support ==multi-index scans==. When using multiple indexes for a query, the DBMS computes sets of record IDs using each matching index, combines these sets based on the query’s predicates, and retrieves the records and apply any predicates that may remain. The DBMS can use bitmaps, hash tables, or Bloom filters to compute record IDs through set intersection.
 
-![image-20220306185906442](https://littleneko.oss-cn-beijing.aliyuncs.com/img/image-20220306185906442.png)
+<img src="https://littleneko.oss-cn-beijing.aliyuncs.com/img/image-20220306185906442.png" alt="image-20220306185906442" style="zoom: 25%;" />
 
 # Modification Queries
 
@@ -126,9 +126,9 @@ Operators that modify the database (INSERT, UPDATE, DELETE) are responsible for 
 
 The Halloween Problem is an anomaly in which an update operation changes the physical location of a tuple, causing a scan operator to visit the tuple multiple times. This can occur on clustered tables or index scans.
 
-![image-20220306190852248](https://littleneko.oss-cn-beijing.aliyuncs.com/img/image-20220306190852248.png)
+<img src="https://littleneko.oss-cn-beijing.aliyuncs.com/img/image-20220306190852248.png" alt="image-20220306190852248" style="zoom:25%;" />
 
-![image-20220306190909431](https://littleneko.oss-cn-beijing.aliyuncs.com/img/image-20220306190909431.png)
+<img src="https://littleneko.oss-cn-beijing.aliyuncs.com/img/image-20220306190909431.png" alt="image-20220306190909431" style="zoom:25%;" />
 
 # Expression Evaluation
 
