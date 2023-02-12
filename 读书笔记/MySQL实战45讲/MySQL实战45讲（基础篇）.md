@@ -127,7 +127,7 @@ A3: 这个是一个安全方面的考虑。你想想一个用户如果没有查�
 
 1. 当对一个表做增删改查操作的时候，加 MDL 读锁；当要对表做结构变更操作的时候，加 MDL 写锁
 
-1. 即使是小表，DDL操作不慎也会出问题
+1. 即使是小表，DDL 操作不慎也会出问题
 
    <img src="https://littleneko.oss-cn-beijing.aliyuncs.com/img/1585064637978-29dc8d63-3d3d-43bf-af83-d758869f13bb.png" alt="image.png" style="zoom: 80%;" />
 
@@ -202,13 +202,13 @@ Q6:ROLLBACK TO SAVEPOINT sp;
 
    <img src="https://littleneko.oss-cn-beijing.aliyuncs.com/img/1585993677745-417e690e-7d26-4363-90b2-adb23cf68956.png" alt="image.png" style="zoom: 80%;" />
 
-3. **MySQL如何定义快照** 
+3. **MySQL 如何定义快照** 
 
-​	使用一个数组保存事务启动的瞬间当前“活跃”事务的ID，最小值记为低水位，最大值加1记为高水位。
+​	使用一个数组保存事务启动的瞬间当前“活跃”事务的 ID，最小值记为低水位，最大值加 1 记为高水位。
 
-   1. 事务ID小于低水位：可见
+   1. 事务 ID 小于低水位：可见
 
-   1. 事务ID大于高水位：不可见
+   1. 事务 ID 大于高水位：不可见
 
    1. 其他情况
       1. 若 row `trx_id` 在数组中，表示这个事务版本是由还没提交的事务生成的，不可见
@@ -224,5 +224,5 @@ Q6:ROLLBACK TO SAVEPOINT sp;
 > **TIPS**：
 > 	同一行数据，最新版本的 row trx_id 是可能会小于旧版本的 row trx_id 的
 
-4. 更新逻辑：更新数据都是先读后写的，而这个读，只能读当前的值，称为“当前读”（current read）。 `select xxx from xxx lock in share mode/for update`  也是当前读。
+4. 更新逻辑：更新数据都是先读后写的，而这个读，只能读当前的值，称为==“当前读”==（current read），`select xxx from xxx lock in share mode/for update`  也是当前读。
 4. 在可重复读隔离级别下，只需要在事务开始的时候创建一致性视图，之后事务里的其他查询都共用这个一致性视图；在读提交隔离级别下，每一个语句执行前都会重新算出一个新的视图。

@@ -59,14 +59,17 @@
 1. **等 FTWRL**
 1. ==**等行锁**==。如何查看： `select * from t sys.innodb_lock_waits where locked_table='test.t'` 
 > TIPS:
-> - KILL QUERY pid：停止pid当前正在执行的语句，锁不会释放
+> - KILL QUERY pid：停止 pid 当前正在执行的语句，锁不会释放
 > - KILL pid：断开这个连接，锁会被释放
 
-4. ==**快照读扫描大量 undo log**==。现象：普通 select 响应时间很长，加上 lock in share mod 后当前读立刻返回。
+4. ==**快照读扫描大量 undo log**==。现象：==普通 select 响应时间很长，加上 lock in share mod 后当前读立刻返回==。
+
 4. **对于没有建索引的表如何加锁**
-   1. RR：全表加 Gap Lock
-   1. ⭐️RC：只有满足条件的行加 Row Lock（扫描过程中不满足条件的行直接释放行锁）
-      1. 对于 `update` ，扫描的过程中如果发现该行已经被加锁了，会使用 semi-consistent 优化，即读取该行的最新值，判断是否满足 where 条件，只有在满足的时候才会锁等待
+   1. **RR**：全表加 Gap Lock
+   
+   1. **RC**：只有满足条件的行加 Row Lock（扫描过程中不满足条件的行直接释放行锁）⭐️
+   
+      对于 `update` ，扫描的过程中如果发现该行已经被加锁了，会使用 semi-consistent 优化，即读取该行的最新值，判断是否满足 where 条件，只有在满足的时候才会锁等待
 > **TIPS**:
 >
 > **REPEATABLE READ**
@@ -138,14 +141,14 @@ A1: 读提交隔离级别一般没有 gap lock，不过也有例外情况， 比
 **关键词**：**Next-Key Lock**
 
 1. ==**MySQL加锁规则（RR）**==：
-   - 原则 1：加锁的==基本单位是 next-key lock==。希望你还记得，next-key lock 是前开后闭区间。
-   - 原则 2：查找过程中==访问到的对象才会加锁==。如果查询只使用覆盖索引，并不需要访问主键索引，那么主键索引上没有加任何锁（ lock in share mode：扫描索引只会锁住索引；for update：即使不访问主键索引也会给主键索引加锁）
-   - 优化 1：索引上的==等值查询==，给==唯一索引==加锁的时候，next-key lock ==退化为行锁==。
-   - 优化 2：索引上的==等值查询==，==向右遍历==时且==最后一个值不满足等值条件==的时候，next-key lock ==退化为间隙锁==。
-   - 一个 bug：唯一索引上的范围查询会访问到不满足条件的第一个值为止。
+   - **原则 1**：加锁的==基本单位是 next-key lock==。希望你还记得，next-key lock 是==前开后闭==区间。
+   - **原则 2**：查找过程中==访问到的对象才会加锁==。如果查询只使用覆盖索引，并不需要访问主键索引，那么主键索引上没有加任何锁（ lock in share mode：扫描索引只会锁住索引；for update：即使不访问主键索引也会给主键索引加锁）
+   - **优化 1**：索引上的==等值查询==，给==唯一索引==加锁的时候，next-key lock ==退化为行锁==。
+   - **优化 2**：索引上的==等值查询==，==向右遍历==时且==最后一个值不满足等值条件==的时候，next-key lock ==退化为间隙锁==。
+   - **一个 bug**：唯一索引上的范围查询会访问到不满足条件的第一个值为止。
 
 
-2. next-key lock 实际上是间隙锁和行锁加起来的结果，即分析加锁的时候要按两步来，先 ==Gap Lock 再 Row Lock==。
+2. next-key lock 实际上是间隙锁和行锁加起来的结果，即==分析加锁的时候要按两步来，先 Gap Lock 再 Row Lock==。
 
     <img src="https://littleneko.oss-cn-beijing.aliyuncs.com/img/1587040765219-3695a126-bfc6-4710-b3b7-009d186c946e.png" alt="image.png" style="zoom: 50%;" />
 
