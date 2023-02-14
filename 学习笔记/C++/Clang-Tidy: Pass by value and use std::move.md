@@ -12,21 +12,20 @@
 
 我们来分析一下两种写法的区别：
 
-1. 参数传递时不需要 copy，但是参数初始化 class field 的时候需要一次 copy
-2. 参数传递时有一次 copy，初始化 class field 时因为是 std::move，不需要 copy 了
+1. **传引用**：参数传递时不需要 copy，但是参数初始化 class field 的时候需要一次 copy
+2. **传值**：参数传递时有一次 copy，初始化 class field 时因为是 `std::move`，不需要 copy
 
 两种方式都是一次 copy，区别在于 copy 发生的时机，那为什么 Clang-Tidy 推荐第 2 中写法呢？
 
 
 
-主要原因是现代 C++ 有 *copy elision* 优化（RVO 就是其中一种），在一个声明了 value 参数的函数中，当函数实际参数
-是 rvalue 时，编译器能判断出多余的 copy 操作，并主动忽略之，在函数内直接使用了实参对象。
+主要原因是现代 C++ 有 *copy elision* 优化（RVO 就是其中一种），在一个声明了 value 参数的函数中，当函数实际参数是 rvalue 时，编译器能判断出多余的 copy 操作，并主动忽略之，在函数内直接使用了实参对象。
 
 回到上面的两种情况，如果 c 是一个 rvalue，那么第二种写法一次 copy 都不需要了；但是第一种写法仍然需要一次 copy。
 
 
 
-Example：
+**Example**：
 
 ```c++
 class A {
@@ -96,9 +95,8 @@ B b(std::move(a));	// move + move
 
 
 
-> **Tips**:
+> **Tips**: 上述讨论假设 move is cheapper then copy
 >
-> 1. 上诉讨论假设 move is cheapper then copy
 
 
 

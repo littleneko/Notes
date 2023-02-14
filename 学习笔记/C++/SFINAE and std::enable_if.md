@@ -2,7 +2,7 @@
 替换失败并非错误 (Substitution failure is not an error, **SFINAE**) 是指 C++ 语言在模板参数匹配失败时不认为这是一个编译错误。戴维·范德沃德最先引入 SFINAE 缩写描述相关编程技术。
 
 
-具体说，当创建一个重载函数的候选集时，某些（或全部）候选函数是用模板实参替换（可能的推导）模板形参的模板实例化结果。==如果某个模板的实参替换时失败，编译器将在候选集中删除该模板，而不是当作一个编译错误从而中断编译过程，这需要C++语言标准授予如此处理的许可。如果一个或多个候选保留下来，那么函数重载的解析就是成功的，函数调用也是良好的==。
+具体说，当创建一个重载函数的候选集时，某些（或全部）候选函数是用模板实参替换（可能的推导）模板形参的模板实例化结果。==如果某个模板的实参替换时失败，编译器将在候选集中删除该模板，而不是当作一个编译错误从而中断编译过程，这需要 C++ 语言标准授予如此处理的许可。如果一个或多个候选保留下来，那么函数重载的解析就是成功的，函数调用也是良好的==。
 
 
 ## 例子
@@ -63,7 +63,7 @@ int main() {
   std::cout << has_typedef_foobar<foo>::value << std::endl;  // Prints true
 }
 ```
-当类型 `T` 有嵌套类型 `foobar`，`test` 的第一个定义被实例化并且空指针常量被作为参数传入。（结果类型是`yes` 。）如果不能匹配嵌套类型 `foobar` ，唯一可用函数是第二个 `test` 定义，且表达式的结果类型为 `no`。省略号（ellipsis）不仅用于接收任何类型，它的转换的优先级是最低的，因而优先匹配第一个定义，这去除了二义性。
+当类型 `T` 有嵌套类型 `foobar`，`test` 的第一个定义被实例化并且空指针常量被作为参数传入（结果类型是`yes`）。如果不能匹配嵌套类型 `foobar` ，唯一可用函数是第二个 `test` 定义，且表达式的结果类型为 `no`。省略号（ellipsis）不仅用于接收任何类型，它的转换的优先级是最低的，因而优先匹配第一个定义，这去除了二义性。
 
 ---
 
@@ -97,7 +97,7 @@ int main() {
 # std::enable_if
 <img src="https://littleneko.oss-cn-beijing.aliyuncs.com/img/1637689647209-3cfa8a13-07f2-41fb-8274-0c00a54ebeed.png" alt="image.png" style="zoom:50%;" />
 
-If B is true, std::enable_if has a public member typedef type, equal to T; otherwise, there is no member typedef.
+If B is true, `std::enable_if` has a public member typedef type, equal to T; otherwise, there is no member typedef.
 
 `std::enable_if` 是利用 SFINAE 根据类型特征有条件地从重载解析中移除函数，并为不同类型特征提供单独的函数重载和特化的便捷方式。 `std::enable_if` 可用作==附加函数参数（不适用于运算符重载==）、==返回类型（不适用于构造函数和析构函数==）或用作==类模板或函数模板参数==。
 
@@ -134,9 +134,9 @@ struct T {
     struct enable_if<true, _Tp>
     { typedef _Tp type; };
 ```
-首先定义了一个类模板 `enable_if`，有一个 `bool` 型的非类型模板参数 (non-type template parameter)和一个普通模板参数 \_Tp，默认情况下 enable_if 并没有 typedef 一个 type 成员类型。
+首先定义了一个类模板 `enable_if`，有一个 `bool` 型的非类型模板参数 (non-type template parameter) 和一个普通模板参数 \_Tp，默认情况下 enable_if 并没有 typedef 一个 type 成员类型。
 
-另外还有一个 非类型模板参数 为 `true` 时的偏特化，该偏特化类型 typedef 了 一个 \_Tp 类型的 type 类型成员。
+另外还有一个非类型模板参数 为 `true` 时的偏特化，该偏特化类型 typedef 了 一个 \_Tp 类型的 type 类型成员。
 
 
 上面的例子中，==使用 `typename std::enable_if<condition, bool>::type` 作为类/函数模板参数就是为了让 `std::enable_if` 参与到函数类型中==。

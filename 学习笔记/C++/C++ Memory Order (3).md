@@ -2,7 +2,7 @@
 
 ## Relaxed ordering
 
-`memory_order_relaxed` 只保证原子性，不具有任何数据同步的限制，在保证单线程执行效果一致的情况下，编译器在编译时和 CPU 在运行时可以进行各种重排，因此下面的代码在 C++ 标准中允许出现 r1 == r2 == 42 的情况（在 x86 上实际不会出现）。
+`memory_order_relaxed` 只保证原子性，不具有任何数据同步的限制，在保证单线程执行效果一致的情况下，编译器在编译时和 CPU 在运行时可以进行各种重排，因此下面的代码在 C++ 标准中允许出现 `r1 == r2 == 42` 的情况（在 x86 上实际不会出现）。
 
 ```cpp
 // Thread 1:
@@ -45,14 +45,14 @@ int main()
 
 ## Release-Acquire ordering
 
-如果在线程 A 中对原子变量 M 使用 `memory_order_release` 写入（store），在线程 B 中对同一个原子变量 M 使用 `memory_order_acquire` 读（load），那么在线程 A 中所有 _happened-before_ M.store 之前的内存写操作（==包括非原子变量和 relaxed 的原子变量==）在线程 B 中都变成了 _visible side-effects_。即一旦线程 B 的load 读到了 M 的新值，就保证可以看到 A 在 release 之前的写。
+如果在线程 A 中对原子变量 M 使用 `memory_order_release` 写入（store），在线程 B 中对同一个原子变量 M 使用 `memory_order_acquire` 读（load），那么在线程 A 中所有 _happened-before_ M.store 之前的内存写操作（==包括非原子变量和 relaxed 的原子变量==）在线程 B 中都变成了 _visible side-effects_。==即一旦线程 B 的 load 读到了 M 的新值，就保证可以看到 A 在 release 之前的写==。
 
 
-上述情况只发生在对同一个原子变量 release 和 qcquire 的两个线程之间，其他线程可以看到不同的内存顺序。
+上述情况只发生在对同一个原子变量 release 和 acquire 的两个线程之间，其他线程可以看到不同的内存顺序。
 
 
 > **Tips**:
-> 互斥锁，比如  std::mutex 或 atomic spinlock 也是一个 release-acquire 同步。
+> 互斥锁，比如  `std::mutex` 或 atomic spinlock 也是一个 release-acquire 同步。
 
 ```cpp
 #include <thread>
@@ -129,7 +129,7 @@ int main()
 }
 ```
 
-上面的代码展示了 release-acquire 的传递性，thread 2 acquire 拿到 flag == 1 后，一定可以读到 data 为 42，然后 thread release 更改 flag 为 2，thread 3 acquire 拿到 flag == 2 后，也一定能读到 data 为 42。
+上面的代码展示了 release-acquire 的传递性，thread 2 acquire 拿到 `flag == 1` 后，一定可以读到 data 为 42，然后 thread release 更改 flag 为 2，thread 3 acquire 拿到 `flag == 2` 后，也一定能读到 data 为 42。
 
 
 ## Release-Consume ordering
@@ -138,9 +138,7 @@ int main()
 
 
 > **Tips**:
-> 因为 Release-Consume ordering 要记录 dependency chains，现在没有编译器实现了该 ordering，实际上都等同于 Release-Acquire ordering。在 C++ 17 以后，memory_order_consume 已经被抛弃，不建议使用。
-
- 
+> 因为 Release-Consume ordering 要记录 dependency chains，现在没有编译器实现了该 ordering，实际上都等同于 Release-Acquire ordering。在 C++ 17 以后，`memory_order_consume` 已经被抛弃，不建议使用。
 
 ```cpp
 #include <thread>
@@ -175,12 +173,12 @@ int main()
 }
 ```
 
-因为 data 并不依赖 ptr，所以并不保证 p2 load 之后能看到 data == 42；因为 ptr carries dependency p，所以可以保证 p2 load 之后一定能看到 \*p == "Hello"。
+因为 data 并不依赖 ptr，所以并不保证 p2 load 之后能看到 `data == 42`；因为 ptr carries dependency p，所以可以保证 p2 load 之后一定能看到 `*p == "Hello"`。
 
 
 ## Sequentially-consistent ordering
 
-使用 `memory_order_seq_cst` 除了有 release/acquire 的效果，还会外加一个单独全序（_single total modification order_），也就是保证所有的线程观察到内存操作完全同样的顺序。
+使用 `memory_order_seq_cst` 除了有 release/acquire 的效果，还会外加一个单独==全序==（_single total modification order_），也就是==保证所有的线程观察到内存操作完全同样的顺序==。
 
 
 下面是一个需要 sequentially-consistent ordering 的例子：
@@ -233,7 +231,7 @@ int main()
 }
 ```
 
-要使 z == 0，只有以下情况：
+要使 `z == 0`，只有以下情况：
 
 1. read_x_then_y ==依次==观察到 x == true; y == false
 1. read_y_then_x ==依次==观察到 y == true; x == false
@@ -251,8 +249,7 @@ In addition, volatile accesses are ==not atomic== (concurrent read and write is 
 
 # Misc
 
-release-acquire 和 release-consumer 一定是成对出现才能保证上述 ordering，比如把 Release-Acquire 中的
-consumer 改成下面这样：
+release-acquire 和 release-consumer 一定是成对出现才能保证上述 ordering，比如把 Release-Acquire 中的 consumer 改成下面这样：
 
 ```cpp
 void consumer()
@@ -269,7 +266,7 @@ void consumer()
 
 ---
 
-==**memory fence 不等于可见性**==，即使线程2恰好在线程1在把 ready 设置为 true 后读取了 ready 也不意味着它能看到 true，因为同步 cache 是有延时的。==memory fence 保证的是可见性的**顺序**：“假如我看到了 a 的最新值，那么我一定也得看到 b 的最新值”==。
+==**memory fence 不等于可见性**==，即使线程2  恰好在线程 1 在把 ready 设置为 true 后读取了 ready 也不意味着它能看到 true，因为同步 cache 是有延时的。==memory fence 保证的是可见性的**顺序**：“假如我看到了 a 的最新值，那么我一定也得看到 b 的最新值”==。
 
 ```cpp
 // Thread1

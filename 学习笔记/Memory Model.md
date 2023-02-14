@@ -1,8 +1,12 @@
 # Overview
 **什么是内存模型？**
+
 In computing, a **memory model** describes the interactions of [threads](https://en.wikipedia.org/wiki/Thread_(computing)) through [memory](https://en.wikipedia.org/wiki/Memory_(computing)) and their shared use of the data.
 
+
+
 **定义内存模型的意义？**
+
 有了内存模型，编译器就可以做一些编译优化。
 
 编译优化的原则：the compiler needs to make sure **only** that the values of (potentially shared) variables at _synchronization barriers_ are guaranteed to be the same in both the optimized and unoptimized code. In particular, reordering statements in a block of code that contains no synchronization barrier is assumed to be safe by the compiler.

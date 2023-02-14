@@ -5,7 +5,7 @@ struct Pow {
     enum{ value = B*Pow<B, N-1>::value };
 };
 
-template< int B > 
+template<int B > 
 struct Pow<B, 0> { 
     // ''N == 0'' condition of termination.
     enum{ value = 1 };

@@ -5,7 +5,7 @@ happens-before，指令重排，内存屏障，缓存一致性模型 MESI，编�
 
 ---
 
-我们先来看看词典中对于volatile的解释，词典中对于这个单词有如下解释：
+我们先来看看词典中对于 volatile 的解释，词典中对于这个单词有如下解释：
 
 
 **易变的；无定性的；无常性的；可能急剧波动的**
@@ -113,7 +113,7 @@ typedef enum memory_order {
 既然有了 MESI 等缓存一致性协议，那是不是就可以保证多线程（多核）之间的可见行问题了呢？实际上并不是，由于传统的 MESI 协议的执行成本比较大。所以 CPU 通过 Store Buffer 和 Invalidate Queue 组件来解决，但是由于这两个组件的引入，也导致缓存和主存之间的通信并不是实时的。也就是说，缓存一致性模型只能保证缓存变更可以保证其他缓存也跟着改变，但是不能保证立刻、马上执行。感兴趣的可以看《Memory Models for C/C++ Programmers 》和《x86-TSO - A Rigorous and Usable Programmer’s Model for x86 Multiprocessors》这两篇论文。
 
 
-其实，在计算机内存模型中，是使用内存屏障（[Memory barrier](https://en.wikipedia.org/wiki/Memory_barrier)）来解决缓存的可见性问题的。写内存屏障（Store Memory Barrier）可以促使处理器将当前 store buffer（存储缓存）的值写回主存。读内存屏障（Load Memory Barrier）可以促使处理器处理 invalidate queue（失效队列）。进而避免由于 Store Buffer 和 Invalidate Queue 的非实时性带来的问题。
+其实，在计算机内存模型中，是使用==内存屏障==（[Memory barrier](https://en.wikipedia.org/wiki/Memory_barrier)）来解决缓存的可见性问题的。==写内存屏障==（Store Memory Barrier）可以促使处理器将当前 store buffer（存储缓存）的值写回主存。==读内存屏障==（Load Memory Barrier）可以促使处理器处理 invalidate queue（失效队列）。进而避免由于 Store Buffer 和 Invalidate Queue 的非实时性带来的问题。
 > **Tips**:
 > 在 JVM 中就是通过内存屏障来实现 volatile 的可见性问题的
 
@@ -140,13 +140,13 @@ no-volatile 变量：
 
 <img src="https://littleneko.oss-cn-beijing.aliyuncs.com/img/1573924040134-e3d401d6-cf68-4c1b-b09f-6aa4c7b6f874.png" alt="image.png" style="zoom:50%;" />
 
-开启O3编译优化
+开启 O3 编译优化
 
 <img src="https://littleneko.oss-cn-beijing.aliyuncs.com/img/1573924060194-d1a7db2a-a39b-4311-b991-b1fe8aff6ad6.png" alt="image.png" style="zoom:50%;" />
 
 可以看到开启 O3 编译优化后，变量 a 直接被优化掉了，因为编译器这里判断出来最后要 print 的值就是立即数 1。
 
-volatile 变量 -O3 编译
+volatile 变量开启 O3 编译
 
 <img src="https://littleneko.oss-cn-beijing.aliyuncs.com/img/1573924114793-04dd119d-a4da-4624-b43d-884040af84e2.png" alt="image.png" style="zoom:50%;" />
 
@@ -205,8 +205,8 @@ JVM有自己的内存模型，Java 加强了 `volatile` 语义：
 
 不保证下面的情况：
 
-1. ==内存可见行==，即在多核CPU的缓存中修改了 `volatile` 变量，不能保证立即能在另一个核的缓存中读到（ `volatile` 只保证了不缓存在寄存器中，然而从缓存中读并不能保证缓存一致性）
-1. ==`volatile` 和普通变量操作之间的顺序==，编译器和CPU都会有乱序
+1. ==内存可见行==，即在多核 CPU 的缓存中修改了 `volatile` 变量，不能保证立即能在另一个核的缓存中读到（ `volatile` 只保证了不缓存在寄存器中，然而从缓存中读并不能保证缓存一致性）
+1. ==`volatile` 和普通变量操作之间的顺序==，编译器和 CPU 都会有乱序
 
 
 
