@@ -54,6 +54,7 @@ Notes
         * [openvpn](./%E5%AD%A6%E4%B9%A0%E7%AC%94%E8%AE%B0/Utils/openvpn.md)
     * [ZooKeeper 临时节点](./%E5%AD%A6%E4%B9%A0%E7%AC%94%E8%AE%B0/ZooKeeper%20%E4%B8%B4%E6%97%B6%E8%8A%82%E7%82%B9.md)
     * [double-checked locking](./%E5%AD%A6%E4%B9%A0%E7%AC%94%E8%AE%B0/double-checked%20locking.md)
+    * [golang GC (三色标记法)](./%E5%AD%A6%E4%B9%A0%E7%AC%94%E8%AE%B0/golang%20GC%20%28%E4%B8%89%E8%89%B2%E6%A0%87%E8%AE%B0%E6%B3%95%29.md)
     1. **rust**
         * [[转载] 高级生命周期](./%E5%AD%A6%E4%B9%A0%E7%AC%94%E8%AE%B0/rust/%5B%E8%BD%AC%E8%BD%BD%5D%20%E9%AB%98%E7%BA%A7%E7%94%9F%E5%91%BD%E5%91%A8%E6%9C%9F.md)
     1. **分布式系统**
