@@ -6,14 +6,14 @@
 ==**右值引用**==是连接这两个截然不同的概念的胶合剂，它是使移动语义和完美转发变得可能的基础语言机制。
 
 
-实际上，`std::move` 并不移动任何东西，完美转发也并不完美。移动操作并不永远比复制操作更廉价；即便如此，它也并不总是像你期望的那么廉价，而且，它也并不总是被调用，即使在当移动操作可用的时候。构造 `type&&` 也并非总是代表一个右值引用。
+实际上，`std::move` 并不移动任何东西，完美转发也并不完美。==移动操作并不永远比复制操作更廉价==；即使如此，它也并不总是像你期望的那么廉价；并且当移动操作可用的时候它也并不总是被调用。而且 `type&&` 也并非总是代表一个右值引用。
 
 
 非常重要的一点是要牢记==形参永远是左值，即使它的类型是一个右值引用==。比如
 ```cpp
 void f(Widget&& w);
 ```
-形参 w 是一个左值，即使它的类型是一个 rvalue-reference-to-Widget。
+形参 w 是一个左值，即使它的类型是一个 Widget 的 rvalue-reference。
 
 
 # 区分通用引用与右值引用
@@ -172,7 +172,7 @@ decltype(auto) move(T&& param)          // C++14，仍然在 std 命名空间
 class Annotation {
 public:
     explicit Annotation(const std::string text)
-    ：value(std::move(text))    // “移动” tex t到 value 里；这段代码执行起来
+    ：value(std::move(text))    // “移动” text 到 value 里；这段代码执行起来
     { … }                       // 并不是看起来那样
     
     …
@@ -307,9 +307,12 @@ public:
 ```cpp
 w.setName("Adela Novak");
 ```
-使用通用引用的版本的 setName，字面字符串 “Adela Novak” 可以被传递给 setName，再传给 w 内部 `std::string` 的赋值运算符，==w 的 name 的数据成员通过字面字符串直接赋值，没有临时 `std::string` 对象被创建==。但是，==setName 重载版本，会有一个临时 `std::string` 对象被创建，setName 形参绑定到这个对象，然后这个临时 `std::string` 移动到 w 的数据成员中==。一次 setName 的调用会包括 `std::string` 构造函数调用（创建中间对象），`std::string` 赋值运算符调用（移动 newName 到 w.name），`std::string` 析构函数调用（析构中间对象）。这比调用接受 `const char*` 指针的 `std::string` 赋值运算符开销昂贵许多。增加的开销根据实现不同而不同，这些开销是否值得担心也跟应用和库的不同而有所不同，但是事实上，将通用引用模板替换成对左值引用和右值引用的一对函数重载在某些情况下会导致运行时的开销。如果把例子泛化，Widget 数据成员是任意类型（而不是知道是个 `std::string`），性能差距可能会变得更大，因为不是所有类型的移动操作都像 `std::string` 开销较小。
+使用通用引用的版本的 setName，字面字符串 “Adela Novak” 可以被传递给 setName，再传给 w 内部 `std::string` 的赋值运算符，==w 的 name 的数据成员通过字面字符串直接赋值，没有临时 `std::string` 对象被创建==。但是，==setName 重载版本，会有一个临时 `std::string` 对象被创建，setName 形参绑定到这个对象，然后这个临时 `std::string` 移动到 w 的数据成员中==。一次 setName 的调用会包括 `std::string` 构造函数调用（创建中间对象），`std::string` 赋值运算符调用（移动 newName 到 w.name），`std::string` 析构函数调用（析构中间对象）。这比调用接受 `const char*` 指针的 `std::string` 赋值运算符开销昂贵许多。增加的开销根据实现不同而不同，这些开销是否值得担心也跟应用和库的不同而有所不同，但是事实上，将通用引用模板替换成对左值引用和右值引用的一对函数重载在某些情况下会导致运行时的开销。如果把例子泛化，Widget 数据成员是任意类型（而不止是个 `std::string`），性能差距可能会变得更大，因为不是所有类型的移动操作都像 `std::string` 开销较小。
 > **Tips**:
-> 同 `std::vector::push_back()` 和 `std::vactor::emplace_back()` 的区别
+> 同 `std::vector::push_back()` 和 `std::vactor::emplace_back()` 的区别：
+>
+> * 如果使用 push_back(std::move(x))，需要先构造一个临时对象 x，然后把 x move 到 vector 中，最后析构 x 对象；
+> * 如果使用 emplace_back(a, b, c)，会直接用 (a, b, c) 三个参数在 vector 里构造 X 对象。
 
 
 ---
