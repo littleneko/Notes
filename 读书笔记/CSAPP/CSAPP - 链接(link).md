@@ -1,42 +1,3 @@
-本文用到的两段代码：
-```c
-/* main.c */
-/* $begin main */
-int sum(int *a, int n);
-
-int array[2] = {1, 2};
-
-int main() 
-{
-    int val = sum(array, 2);
-    return val;
-}
-/* $end main */
-```
-
-
-```c
-/* sum.c */
-/* $begin sum */
-int sum(int *a, int n)
-{
-    int i, s = 0;
-    
-    for (i = 0; i < n; i++) { 
-        s += a[i];
-    }
-    return s;
-}        
-/* $end sum */
-```
-
-**gcc 编译的流程**
-
-1. 预处理（cpp）：main.c -> main.i
-1. 编译（cc1）：main.i -> main.s
-1. 汇编（as）：main.s -> main.o
-1. 链接（ld）：xxx.o -> main(elf)
-
 # 目标文件格式
 
 - 可重定位目标文件（ `.o` 文件）
@@ -237,6 +198,48 @@ ELF文件被设计地很容易加载到内存，可执行文件连续的片（ch
 # 位置无关代码
 
 TODO
+
+# 附录
+
+本文用到的两段代码：
+
+```c
+/* main.c */
+/* $begin main */
+int sum(int *a, int n);
+
+int array[2] = {1, 2};
+
+int main() 
+{
+    int val = sum(array, 2);
+    return val;
+}
+/* $end main */
+```
+
+
+```c
+/* sum.c */
+/* $begin sum */
+int sum(int *a, int n)
+{
+    int i, s = 0;
+    
+    for (i = 0; i < n; i++) { 
+        s += a[i];
+    }
+    return s;
+}        
+/* $end sum */
+```
+
+**gcc 编译的流程**
+
+1. 预处理（cpp）：main.c -> main.i
+1. 编译（cc1）：main.i -> main.s
+1. 汇编（as）：main.s -> main.o
+1. 链接（ld）：xxx.o -> main(elf)
 
 # Reference
 

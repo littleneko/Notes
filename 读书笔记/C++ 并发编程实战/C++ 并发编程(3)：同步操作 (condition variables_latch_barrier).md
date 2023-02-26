@@ -87,8 +87,8 @@ std::async(baz, std::ref(x));	// 调用 baz(x)
 class move_only	{
 public:
 	move_only();
-	move_only(move_only&&)
-    move_only(move_only const&) = delete;
+	move_only(move_only&&);
+  move_only(move_only const&) = delete;
 	move_only& operator=(move_only&&);
 	move_only& operator=(move_only const&) = delete;
 	void operator()();
