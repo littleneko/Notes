@@ -11,8 +11,8 @@ LevelDB 整体由以下 6 个模块构成：
 * **MemTable**：KV 数据在内存的存储格式，由 SkipList 组织，整体有序。
 
 * **Immutable MemTable**：MemTable 达到一定阈值后变为不可写的 MemTable，等待被 Flush 到磁盘上。
-* **Log**：有点类似于文件系统的 Journal，用来保证 Crash 不丢数据，支持批量写的原子操作、转换随机写为顺序写。
-* **SSTable**：KV 数据在磁盘的存储格式，文件里面的 Key 整体有序，一旦生成便是只读的，L0 可能会有 Overlap，其他层 sstable 之间都是有序的。
+* **Log**：有点类似于文件系统的 Journal，用来保证 Crash 不丢数据，支持批量写的原子操作，转换随机写为顺序写。
+* **SSTable**：KV 数据在磁盘的存储格式，文件里面的 Key 整体有序，一旦生成便是只读的。L0 可能会有 Overlap，其他层 sstable 之间都是有序的。
 * **Manifest**：增量的保存 DB 的状态信息，使得重启或者故障后可以恢复到退出前的状态。
 * **Current**：记录当前最新的 Manifest 文件名。
 
@@ -95,7 +95,7 @@ private:
 
 ## Varint
 
-* leveldb 采用了 protocalbuffer 里使用的变长整形编码方法，节省空间。
+* leveldb 采用了 protocol buffer 里使用的变长整形编码方法，节省空间。
 
 ```cpp
 // Lower-level versions of Put... that write directly into a character buffer
@@ -103,9 +103,16 @@ private:
 // REQUIRES: dst has enough space for the value being written
 char* EncodeVarint32(char* dst, uint32_t value);
 char* EncodeVarint64(char* dst, uint64_t value);
+
+// Pointer-based variants of GetVarint...  These either store a value
+// in *v and return a pointer just past the parsed value, or return
+// nullptr on error.  These routines only look at bytes in the range
+// [p..limit-1]
+const char* GetVarint32Ptr(const char* p, const char* limit, uint32_t* v);
+const char* GetVarint64Ptr(const char* p, const char* limit, uint64_t* v);
 ```
 
-* 源码文件：util/coding.h
+* 源码文件：util/coding.h/.cc
 
 ## ValueType 
 
@@ -156,7 +163,7 @@ static uint64_t PackSequenceAndType(uint64_t seq, ValueType t) {
 
 ## ParsedInternalKey
 
-db 内部操作的 key。db 内部需要将 user key 加入元信息（ValueType/SequenceNumber）一并做处理。
+db 内部操作的 key，db 内部需要将 user key 加入元信息（ValueType/SequenceNumber）一并做处理。
 
 * 定义：
 
@@ -179,7 +186,7 @@ struct ParsedInternalKey {
 
 db 内部包装易用的结构，包含 user key 与 SequnceNumber/ValueType。
 
-* 格式：数据存储在一个 string 中，格式为：==**[user_key]\[SequnceNumber | ValueType]**==，后半部分固定 8 字节
+* 格式：数据存储在一个 string 中，格式为：==**[user_key]\[SequnceNumber(7) | ValueType(1)]**==，后半部分固定 8 字节
 
 * 定义：
 
@@ -283,7 +290,7 @@ LookupKey::LookupKey(const Slice& user_key, SequenceNumber s) {
 
 ## Comparator
 
-对 key 排序时使用的比较方法。leveldb 中 key 为升序。用户可以自定义 userkey 的 comparator (user_comparator)，作为 option 传入，默认采用 byte compare(memcmp)， comparator 中有 `FindShortestSeparator()` / `FindShortSuccessor()` 两个接口：
+对 key 排序时使用的比较方法，leveldb 中 key 为升序。用户可以自定义 userkey 的 comparator (user_comparator)，作为 option 传入，默认采用 byte compare(memcmp)， comparator 中有 `FindShortestSeparator()` / `FindShortSuccessor()` 两个接口：
 
 * `FindShortestSeparator(start, limit)` 是获得大于 start 但小于 limit 的最小值。
 * `FindShortSuccessor(start)` 是获得比 start 大的最小值。
@@ -507,14 +514,14 @@ Get 的步骤稍微复杂一些，分为两步：
 1. 根据 memtable_key 在 SkipList 中 Seek
 2. 如果找到的 SkipList Node 的 user_key 相等，就算找到，==不需要比较 SequenceNumber 是否相等==；否则出错
 
-首先，Seek 的语义是找到==第一个**大于等于**给定 Key 的节点==，等于的情况肯定是找到了，大于分为两种情况：
+首先，SkipList Seek 的语义是找到==第一个**大于等于**给定 Key 的节点==，等于肯定是找到了 user_key 和 SequenceNumber 都相等的记录，大于分为两种情况：
 
-* 没找到给定的 memtable_key 中的 user_key，简单来说就是没找到
-* ==找到了给定的 memtable_key 中的 user_key，但是 SequenceNumber 比 memtable_key 中的要小（InternalKeyComparator 中 SequenceNumber 越小的越大），也就是找到了一个比指定 user_key 的版本更小的数据==。（可能会有比指定版本更大版本的数据存在）
+* 没找到给定的 memtable_key 中的 user_key，此时返回的是第一个比 user_key 大的 key
+* ==找到了给定的 memtable_key 中的 user_key，但是 SequenceNumber 比 memtable_key 中的要小（InternalKeyComparator 中 SequenceNumber 逆序排序），也就是找到了一个比指定 SequenceNumber 版本旧的数据==。（可能会有比指定版本更大版本的数据存在）
+
+因此，在 `MemTable::Get()` 实现中，当在 SkipList 中 Seek 返回 `iter.Valid()` 的情况下还需要再次比较 user_key 是否相等（排除第一种情况），而不需要比较 SequenceNumber 是否相等。
 
 综上所述，==**MemTable::Get() 的语义是返回指定 user_key 小于等于 SequenceNumber 的最大版本的值**==。
-
-因此，在 `iter.Valid()` 的情况下还需要再次比较 user_key 是否相等，而不需要比较 SequenceNumber 是否相等。
 
 > **Tips**:
 >
@@ -542,7 +549,7 @@ WAL 即 Log，每次数据都会先顺序写到 Log 中，然后再写入 MemTab
 +---------------+-------------+-----------+----------+
 ```
 
-- checksum：计算 type 和 data 的 crc。
+- checksum：计算 type 和 data 的 CRC。
 - length：data 的长度，2Byte 可表示 64KB，而 block 为 32KB，刚好够用。
 - type：一个 record 可以在一个或者跨越多个 block，类型有 5 种：Full、First、Middle、Last、Zero (预分配连续的磁盘空间用)。
 - data：用户的 kv 数据。
