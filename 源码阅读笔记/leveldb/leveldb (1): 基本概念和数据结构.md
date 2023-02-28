@@ -11,7 +11,7 @@ LevelDB 整体由以下 6 个模块构成：
 * **MemTable**：KV 数据在内存的存储格式，由 SkipList 组织，整体有序。
 
 * **Immutable MemTable**：MemTable 达到一定阈值后变为不可写的 MemTable，等待被 Flush 到磁盘上。
-* **Log**：有点类似于文件系统的 Journal，用来保证 Crash 不丢数据，支持批量写的原子操作，转换随机写为顺序写。
+* **Log**：有点类似于文件系统的 Journal，用来保证 Crash 不丢数`据，支持批量写的原子操作，转换随机写为顺序写。
 * **SSTable**：KV 数据在磁盘的存储格式，文件里面的 Key 整体有序，一旦生成便是只读的。L0 可能会有 Overlap，其他层 sstable 之间都是有序的。
 * **Manifest**：增量的保存 DB 的状态信息，使得重启或者故障后可以恢复到退出前的状态。
 * **Current**：记录当前最新的 Manifest 文件名。
@@ -91,7 +91,7 @@ private:
 ## Env
 
 * leveldb 将操作系统相关的操作（文件、线程、时间）抽象成 Env，用户可以实现自己的 Env(BlueRocksEnv)，灵活性比较高。
-* 源码文件：include/leveldb/env.h util/env_posix.h
+* 源码文件：include/leveldb/env.h, util/env_posix.h
 
 ## Varint
 
@@ -290,14 +290,14 @@ LookupKey::LookupKey(const Slice& user_key, SequenceNumber s) {
 
 ## Comparator
 
-对 key 排序时使用的比较方法，leveldb 中 key 为升序。用户可以自定义 userkey 的 comparator (user_comparator)，作为 option 传入，默认采用 byte compare(memcmp)， comparator 中有 `FindShortestSeparator()` / `FindShortSuccessor()` 两个接口：
+对 key 排序时使用的比较方法，leveldb 中 key 为升序。用户可以自定义 user_key 的 comparator (user_comparator)，作为 option 传入，默认采用 byte compare(memcmp)， comparator 中有 `FindShortestSeparator()` / `FindShortSuccessor()` 两个接口：
 
 * `FindShortestSeparator(start, limit)` 是获得大于 start 但小于 limit 的最小值。
 * `FindShortSuccessor(start)` 是获得比 start 大的最小值。
 
 比较都基于 user_commparator，二者会被用来确定 sstable 中 block 的 end_key。
 
-源码文件：include/leveldb/comparator.h util/comparator.cc
+源码文件：include/leveldb/comparator.h, util/comparator.cc
 
 ## InternalKeyComparator 
 
@@ -348,7 +348,7 @@ InternalKeyComparator 中 FindShortestSeparator()/ FindShortSuccessor() 的实�
 
 ## WriteBatch
 
-对若干数目 key 的 write 操作（put/delete）封装成 WriteBatch。它会将 userkey 连同 SequnceNumber 和 ValueType 先做 encode，然后做 decode，将数据 insert 到指定的 Handler (memtable) 上面。上层的处理逻辑简洁，但 encode/decode 略有冗余。
+对若干数目 key 的 write 操作（put/delete）封装成 WriteBatch。它会将 user_key 连同 SequnceNumber 和 ValueType 先做 encode，然后做 decode，将数据 insert 到指定的 Handler (memtable) 上面。上层的处理逻辑简洁，但 encode/decode 略有冗余。
 
 ## TableCache
 
@@ -363,7 +363,7 @@ struct TableAndFile {
 
 ## Version
 
-将每次 compact 后的最新数据状态定义为 Version，也就是当前 db 元信息以及每个 level 上具有最新数据状态的 sstable 集合。compact 会在某个 level 上新加入或者删除一些 sstable，但可能这个时候， 那些要删除的 sstable 正在被读，为了处理这样的读写竞争情况，基于 sstable 文件一旦生成就不会改动的特点，每个 Version 加入引用计数，读以及解除读操作会将引用计数相应加减一。这样，db 中可能有多个 Version 同时存在（提供服务），它们通过链表链接起来。当 Version 的引用计数为 0 并 且不是当前最新的 Version 时，它会从链表中移除；对应的，该 Version 内的 sstable 就可以删除了（这些废弃的 sstable 会在下一次 compact 完成时被清理掉）。
+将每次 compact 后的最新数据状态定义为 Version，也就是当前 db 元信息以及每个 level 上具有最新数据状态的 sstable 集合。compact 会在某个 level 上新加入或者删除一些 sstable，但可能这个时候， 那些要删除的 sstable 正在被读，为了处理这样的读写竞争情况，基于 sstable 文件一旦生成就不会改动的特点，每个 Version 加入引用计数，读以及解除读操作会将引用计数相应加减 1。这样，db 中可能有多个 Version 同时存在（提供服务），它们通过链表链接起来。当 Version 的引用计数为 0 并且不是当前最新的 Version 时，它会从链表中移除；对应的，该 Version 内的 sstable 就可以删除了（这些废弃的 sstable 会在下一次 compact 完成时被清理掉）。
 
 ```cpp
 class Version {

@@ -53,7 +53,7 @@ class BlockHandle {
 
 ## BlockContents
 
-BlockContents 保存一个 Block 的数据，ReadBlock() 函数根据 BlockHandle 中的信息读取一个 Block，然后把数据保存在 BlockContents 中：
+BlockContents 保存一个 Block 的数据，`ReadBlock()` 函数根据 BlockHandle 中的信息读取一个 Block，然后把数据保存在 BlockContents 中：
 
 ```cpp
 struct BlockContents {
@@ -65,9 +65,11 @@ struct BlockContents {
 
 ## ReadBlock
 
-对于 Block 的读取通过 ReadBlock() 函数实现，其接受一个 BlockHandle 作为参数，返回读取到的数据 保存在 BlockContents 中，主要流程如下：
+对于 Block 的读取通过 `ReadBlock()` 函数实现，其接受一个 BlockHandle 作为参数，返回读取到的数据 保存在 BlockContents 中，主要流程如下：
 
 ```cpp
+// file: table/format.cc
+
 // 1-byte type + 32-bit crc
 static const size_t kBlockTrailerSize = 5;
 
@@ -157,7 +159,7 @@ class Block {
 
   `restart_offset_ = size_ - (1 + num_restarts) * sizeof(uint32_t);` （即 N 个 4 字节的 restart 和 1 个 4 字节的 num_restarts）
 
-* **size_**：即 BlockContents::data 的 size，不包括 compression_type 和 crc32 的部分
+* **size_**：即 `BlockContents::data` 的 size，不包括 compression_type 和 crc32 的部分
 
 ## Iterator
 
@@ -182,12 +184,12 @@ class Block::Iter : public Iterator {
 };
 ```
 
-* **current_** 表示当前 value(record) 在 block 中的 offset，初始值是 restarts_，即 iter 初始是 !Valid，在第一次使用之前需要先 SeekToFirst()
-* **value_** 表示当前的 value(record)，在 SeekToFirst() 之后才会真正表示第一个 record 的值
+* **current_**：当前 value(record) 在 block 中的 offset，初始值是 `restarts_`，即 iter 初始的 `Valid()` 是 `false`，在第一次使用之前需要先 `SeekToFirst()`
+* **value_**：当前的 value(record)，在 `SeekToFirst()` 之后才会真正表示第一个 record 的值
 
 > **Tips**:
 >
-> Iterator 的定义如下，目前继承自该 Iterator 的对象有：Block::Iter、DBIter、Version::LevelFileNumIterator、MemTableIterator、MergingIterator、TwoLevelIterator，这些 Iter 的 Seek 方法的语义都是定位到第一个大于等于 target 的位置。另外，SkipList 的 Iter 虽然不是继承自该类，但是其 Seek 方法的语义也相同。
+> Iterator 的定义如下，目前继承自该 Iterator 的对象有：`Block::Iter`、`DBIter`、`Version::LevelFileNumIterator`、`MemTableIterator`、`MergingIterator`、`TwoLevelIterator`，这些 Iterator 的 Seek 方法的语义都是定位到第一个大于等于 target 的位置。另外，SkipList 的 Iterator 虽然不是继承自该类，但是其 Seek 方法的语义也相同。
 >
 > ```cpp
 > class LEVELDB_EXPORT Iterator {
@@ -246,27 +248,29 @@ class Block::Iter : public Iterator {
 	// 解出第 index 个 restart 的值，即指向的数据的 offset
   uint32_t GetRestartPoint(uint32_t index) {
     assert(index < num_restarts_);
+    // data_ + restarts_ 即 offset array 的起始位置
     return DecodeFixed32(data_ + restarts_ + index * sizeof(uint32_t));
   }
 ```
 
-SeekToRestartPoint(0) 实际上是把 restart_index_ 置为 0，GetRestartPoint(0) 返回的是第 0 个 restart 指向的数据的 offset，也就是 0；最后当前 value 的值置为指向 data 大小为 0 的值，这里是为了方便 ParseNextKey() 统一处理。
+`SeekToRestartPoint(0)` 实际上是把 `restart_index_` 置为 `0`，`GetRestartPoint(0)` 返回的是第 0 个 restart 指向的数据的 offset，也就是 0；最后当前 value 的值置为指向 data 大小为 `0` 的值，这里是为了方便 `ParseNextKey()` 统一处理。
 
 ### 顺序遍历
 
-顺序遍历即调用 Next 进行遍历，ParseNextKey 用于处理下一个 value，可能需要把 restart_index_ 指针移动到下一个位置：
+顺序遍历即调用 Next 进行遍历，`ParseNextKey()` 用于处理下一个 value，可能需要把 `restart_index_` 指针移动到下一个 restart offset 位置：
 
 ```cpp
   // Return the offset in data_ just past the end of the current entry.
-	// 在 SeekToFirst 后, value 的 size 为 0, 所以这里的 offset 算出来是 0
-	// 此后, value 表示正常的 record, 该函数返回的是下一个 record 的起始 offset
+	// 该函数计算下一个 record 相对于当前 Block 起始位置的 offset
+  // * 在 SeekToFirst() 后, value 的 size 为 0, 这里的 offset 算出来是 0
+	// * 在调用 ParseNextKey() 之后，value 表示当前 record
   inline uint32_t NextEntryOffset() const {
     return (value_.data() + value_.size()) - data_;
   }
 
 	bool ParseNextKey() {
     // 根据上一个 value 大小计算出当前 value 的起始位置
-    // SeekToFirst 后, 第一次返回值为 0
+    // SeekToFirst() 后, 第一次返回值为 0
     current_ = NextEntryOffset();
     const char* p = data_ + current_;
     const char* limit = data_ + restarts_;  // Restarts come right after data
@@ -325,7 +329,7 @@ SeekToRestartPoint(0) 实际上是把 restart_index_ 置为 0，GetRestartPoint(
 
 > **Tips**:
 >
-> 从实现上能看到，逆序遍历每次都要从 restart group 的第一个元素向后遍历一遍，效率比正序遍历要差。
+> 从实现上能看到，逆序遍历每次都要从 restart group 的第一个元素向后遍历一遍，直到找到下一个需要遍历的位置，效率比正序遍历要差。
 
 ### Seek
 
@@ -395,7 +399,7 @@ Seek 的语义是定位到==**第一个大于等于** target 的 key==，Seek �
 
 <img src="https://littleneko.oss-cn-beijing.aliyuncs.com/img/image-20220504221858602.png" alt="image-20220504221858602" style="zoom:50%;" />
 
-Record 实现了前缀压缩，每 block_restart_interval 个 record 重新开始计算压缩前缀。
+Record 实现了前缀压缩，每 `block_restart_interval` 个 record 重新开始计算压缩前缀。
 
 * shared key size：和==前一个== key 相同的部分的长度
 * noshared key size：剩余部分 key 的长度
@@ -438,7 +442,7 @@ static inline const char* DecodeEntry(const char* p, const char* limit,
 
 ## Index Block
 
-Index Block 也是一个普通的 Block，其数据存储方式和数据 Block 没有区别，也是以 Record 为单位，不过其 *block_restart_interval* 的值为 1（即没有前缀压缩），在 `TableBuilder::Rep` 初始化的时候会设置 index_block_options.block_restart_interval 为 1。
+Index Block 也是一个普通的 Block，其数据存储方式和数据 Block 没有区别，也是以 Record 为单位，不过其 `block_restart_interval` 的值为 1（即没有前缀压缩），在 `TableBuilder::Rep` 初始化的时候会设置 `index_block_options.block_restart_interval` 为 `1`。
 
 Index Block 中存储的是当前 sstable 中每个 data block 的最大值，以及 offset 和 size，可以方便定位到一个 block。
 
@@ -466,11 +470,11 @@ struct TableBuilder::Rep {
 ```
 
 * **last_key** 表示当前 data block 的最大值（最后一个值）
-* **pending_handle** 表示当前待写入的 data block 的 offset 和 size 信息，在每次写入 data block 的时候会更新（TableBuilder::WriteBlock()）
+* **pending_handle** 表示当前待写入的 data block 的 offset 和 size 信息，在每次写入 data block 的时候会更新（`TableBuilder::WriteBlock()`）
 
 
 
-index block 的写入也是调用 `Block::Add()` 函数完成的，和 data block 没有区别，只是 data block 的 kv 是用户写入的 kv，index 的 kv 是 last_key 和 BlockHandle 信息。
+Index Block 的写入也是调用 `Block::Add()` 函数完成的，和 data block 没有区别，只是 data block 的 kv 是用户写入的 kv，index 的 kv 是 last_key 和 BlockHandle 信息。
 
 ```cpp
   if (r->pending_index_entry) {
@@ -529,7 +533,7 @@ leveldb 中用 Table 类表示一个 SSTable，Table 对外提供 Iter 和 Get �
      s = footer.DecodeFrom(&footer_input);
    ```
 
-2. 根据 Footer 的 index_handle_ 信息读取 index block 的数据
+2. 根据 Footer 的 `index_handle_` 信息读取 index block 的数据
 
    ```cpp
      // Read the index block
@@ -563,7 +567,7 @@ leveldb 中用 Table 类表示一个 SSTable，Table 对外提供 Iter 和 Get �
 
 ## Get (InternalGet)
 
-调用关系：DBImpl::Get() -> Version::Get() -> TableCache::Get() -> Table::InternalGet()，其中 handle_result 的回调函数是 SaveValue。
+调用关系：`DBImpl::Get()` -> `Version::Get()` -> `TableCache::Get()` -> `Table::InternalGet()`，其中 handle_result 的回调函数是 SaveValue。
 
 其主要逻辑分为两步：
 
@@ -585,7 +589,7 @@ Status Table::InternalGet(const ReadOptions& options, const Slice& k, void* arg,
     Slice handle_value = iiter->value();
     FilterBlockReader* filter = rep_->filter;
     BlockHandle handle;
-    // 2.1 如果有 fliter，并且判断出 k 不存在，那么就真的不存在了
+    // 2.1 如果有 fliter，并且判断出 k 不存在就返回 NotFound
     if (filter != nullptr && handle.DecodeFrom(&handle_value).ok() &&
         !filter->KeyMayMatch(handle.offset(), k)) {
       // Not found
@@ -634,11 +638,56 @@ static void SaveValue(void* arg, const Slice& ikey, const Slice& v) {
 
 ## Read Data by Index (BlockReader)
 
-BlockReader 函数实现了根据 index block 读取 data block 的功能，同时会更新 block cache。
+`Table::BlockReader()` 函数实现了根据 index block 读取 data block 的功能，同时会更新 block cache。
 
 1. 解码出 index value，即指向的 data block 的 offset 和 size（BlockHandle）
 2. 如果在 cache 中已经右该 block，就从 cache 中取；否则就读取该 block（ReadBlock）
 3. 对该 data block 构造一个 iter 并返回
+
+```cpp
+// Convert an index iterator value (i.e., an encoded BlockHandle)
+// into an iterator over the contents of the corresponding block.
+Iterator* Table::BlockReader(void* arg, const ReadOptions& options,
+                             const Slice& index_value) {
+  Table* table = reinterpret_cast<Table*>(arg);
+  Cache* block_cache = table->rep_->options.block_cache;
+  Block* block = nullptr;
+  Cache::Handle* cache_handle = nullptr;
+
+  // 从 index value 中读出 data block 的 offset 和 size，构造 data block 的 BlockHandle
+  BlockHandle handle;
+  Slice input = index_value;
+  Status s = handle.DecodeFrom(&input);
+  // We intentionally allow extra stuff in index_value so that we
+  // can add more features in the future.
+
+  if (s.ok()) {
+    BlockContents contents;
+    if (block_cache != nullptr) {
+      // block cache 逻辑略
+    } else {
+      // 根据从 index value 构建的 data block 的 BlockHandle 读出 data block 的数据到 BlockContents 中
+      s = ReadBlock(table->rep_->file, options, handle, &contents);
+      if (s.ok()) {
+        block = new Block(contents);
+      }
+    }
+  }
+
+  Iterator* iter;
+  if (block != nullptr) {
+    iter = block->NewIterator(table->rep_->options.comparator);
+    if (cache_handle == nullptr) {
+      iter->RegisterCleanup(&DeleteBlock, block, nullptr);
+    } else {
+      iter->RegisterCleanup(&ReleaseBlock, block_cache, cache_handle);
+    }
+  } else {
+    iter = NewErrorIterator(s);
+  }
+  return iter;
+}
+```
 
 ## Iter (TwoLevelIterator)
 
