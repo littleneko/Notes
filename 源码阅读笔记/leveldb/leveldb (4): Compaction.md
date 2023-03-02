@@ -62,7 +62,7 @@ Major compaction 是 LevelDB compaction 中最复杂的部分，主要包含 siz
 
 ## Seek Compaction
 
-在 LevelDB 中，每一个新的 sst 文件，都有一个 `allowed_seek` 的初始阈值，表示最多容忍 seek miss 次数，每当 Get miss 的时候都会减 1，当减为 0 的时候标记为需要 compaction 的文件。LevelDB 认为如果一个 key 在 level i 中总是没找到，而是在 level i+1 中找到，这说明两层之间 key 的范围重叠很严重，当这种 seek miss 积累到一定次数之后，就考虑将其从 level i 中合并到 level i+1 中，这样可以避免不必要的 seek miss 消耗 read I/O。其中 allowed_seek 的初始阈值的计算方式为：
+在 LevelDB 中，每一个新的 sst 文件，都有一个 `allowed_seek` 的初始阈值，表示最多容忍 seek miss 次数，每当 Get miss 的时候都会减 1，当减为 0 的时候标记为需要 compaction 的文件。==LevelDB 认为如果一个 key 在 level i 中总是没找到，而是在 level i+1 中找到，这说明两层之间 key 的范围重叠很严重，当这种 seek miss 积累到一定次数之后，就考虑将其从 level i 中合并到 level i+1 中，这样可以避免不必要的 seek miss 消耗 read I/O==。其中 allowed_seek 的初始阈值的计算方式为：
 
 ```cpp
 / We arrange to automatically compact this file after
@@ -116,9 +116,9 @@ Size Compaction 是 levelDB 的核心 Compact 过程，其主要是为了均衡�
      > 为什么 level 0 采用文件数，而不是文件大小计算 score 的原因：
      >
      > 1. With larger write-buffer sizes, it is nice not to do too many level-0 compactions.
-     > 2. The files in level-0 are merged on every read and therefore we wish to avoid too many files when the individual file size is small (perhaps because of a small write-buffer setting, or very high compression ratios, or lots of overwrites/deletions).
+     > 2. The files in level-0 are merged on every read and therefore we wish to ==avoid too many files when the individual file size is small== (perhaps because of a small write-buffer setting, or very high compression ratios, or lots of overwrites/deletions).
 
-2. 当进行 Compation 时，判断上面的得分是否 >1，如果是则进行 Size Compaction（`VersionSet::PickCompaction()`）
+2. 当进行 Compation 时，判断上面的得分是否大于1，如果是则进行 Size Compaction（`VersionSet::PickCompaction()`）
 
 ## 执行过程
 

@@ -691,7 +691,7 @@ Iterator* Table::BlockReader(void* arg, const ReadOptions& options,
 
 ## Iter (TwoLevelIterator)
 
-对 sstable 的遍历通过 TwoLevelIterator 实现，TwoLevelIterator 实际上是一个支持根据 index block 遍历所有 data block 的结构。
+对 SSTable 的遍历通过 TwoLevelIterator 实现，TwoLevelIterator 实际上是一个支持根据 index block 遍历所有 data block 的结构。
 
 ```cpp
 class TwoLevelIterator : public Iterator {
@@ -727,6 +727,8 @@ void TwoLevelIterator::InitDataBlock() {
       // data_iter_ is already constructed with this iterator, so
       // no need to change anything
     } else {
+      // 这里的 block_function_ 在用于 SSTable 遍历的时候是 Table::BlockReader
+      // 该函数的功能是根据 index block 的信息生成一个 data block 的 iter
       Iterator* iter = (*block_function_)(arg_, options_, handle);
       data_block_handle_.assign(handle.data(), handle.size());
       SetDataIterator(iter);
@@ -735,11 +737,43 @@ void TwoLevelIterator::InitDataBlock() {
 }
 ```
 
+**block_function_** 在用于 SSTable 遍历的时候传入的是 `Table::BlockReader`：
+
+```cpp
+Iterator* Table::NewIterator(const ReadOptions& options) const {
+  return NewTwoLevelIterator(
+      rep_->index_block->NewIterator(rep_->options.comparator),
+      &Table::BlockReader, const_cast<Table*>(this), options);
+}
+```
+
 ## SSTable Write
 
 SSTable 的构造和写入主要通过 TableBuilder 和 BlockBuilder 实现，Builder 中实现了对 data block、index block、meta_index block、footer 的写入。
 
 ### BlockBuilder
+
+BlockBuilder 中有一个 buffer，用于存储当前编码后的 block 的数据：
+
+```cpp
+class BlockBuilder {
+public:
+  // REQUIRES: Finish() has not been called since the last call to Reset().
+  // REQUIRES: key is larger than any previously added key
+  void Add(const Slice& key, const Slice& value);
+  // ... ...
+
+private:
+  const Options* options_;
+  std::string buffer_;              // Destination buffer
+  std::vector<uint32_t> restarts_;  // Restart points
+  int counter_;                     // Number of entries emitted since restart
+  bool finished_;                   // Has Finish() been called?
+  std::string last_key_;
+};
+```
+
+`BlockBuilder::Add()` 函数用于向 block 中写入数据：
 
 ```cpp
 void BlockBuilder::Add(const Slice& key, const Slice& value) {
@@ -779,7 +813,7 @@ void BlockBuilder::Add(const Slice& key, const Slice& value) {
 
 ### TableBuilder
 
-TableBuilder::Rep 持有 data_block 和 index_block 两个 BlockBuilder 对象，用于 DataBlock 和 IndexBlock 的构造：
+`TableBuilder::Rep` 持有 data_block 和 index_block 两个 BlockBuilder 对象，用于 DataBlock 和 IndexBlock 的构造：
 
 ```cpp
 struct TableBuilder::Rep {
@@ -856,4 +890,4 @@ void TableBuilder::Add(const Slice& key, const Slice& value) {
 
 因此 IndexBlock 中的 max_key 并不是这个 DataBlock 的最后一个 key，而是介于这个 DataBlock 的 max_key 和 下一个 DataBlock 的 min_key 之间的某一个字符串，这样做的好处是可以减小 IndexBlock 的大小。
 
-同时，这样做并不会影响最终结果的正确性，以上面的 "helloworld" 和 "hellozoomer" 的例子来说，如果要查找的 key 是 "hellowpxxx"，这个 key 显然是不存在的。如果 IndexBlock 中存储的 max_key 是 "helloworld"，会定位到下一个 DataBlock 中查找；如果 IndexBlock 中存储的 max_key 是 "hellox"，会定位到当前 DataBlock 中查找，两种情况都找不到这个
+同时，并不会影响查找结果的正确性，以 "helloworld" 和 "hellozoomer" 为例，如果要查找的 key 是 "hellowpxxx"，这个 key 显然是不存在的。如果 IndexBlock 中存储的 max_key 是 "helloworld"，会定位到下一个 DataBlock 中查找；如果 IndexBlock 中存储的 max_key 是 "hellox"，会定位到当前 DataBlock 中查找，两种情况都找不到这个 key。

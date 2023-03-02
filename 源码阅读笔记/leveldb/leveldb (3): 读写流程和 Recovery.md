@@ -103,7 +103,7 @@ Get 的逻辑很简单，首先在 memtable 中查找，找不到就去 imm_memt
 
 ### Version::Get()
 
-`Version::Get()` 函数最终调用 `Version::ForEachOverlapping()` 完成 key 的查找，由于Level 0 之间的 SST 文件可能会有 Key Overlap，Level 1~N 之间的 SST 文件不会有 Key Overlap，所以查找 sstable 时 L0 需要遍历，其他 Level 二分查找。
+`Version::Get()` 函数最终调用 `Version::ForEachOverlapping()` 完成 key 的查找，由于Level 0 之间的 SST 文件可能会有 Key Overlap，Level 1~N 之间的 SST 文件不会有 Key Overlap，所以查找 sstable 时 L0 需要遍历所有文件才能找到可能存在该 key 的文件，其他 Level 二分查找定位到可能存在该 key 的文件。
 
 ```cpp
 void Version::ForEachOverlapping(Slice user_key, Slice internal_key, void* arg,
