@@ -19,7 +19,7 @@ Percolator 是 Google 的上一代分布式事务解决方案，构建在 BigTab
 
    在这两种种情况下会返回事务冲突，否则就成功上锁，将行的内容写入 row 中，版本设置为 `startTs`
 
-3. 将 PrimaryRow 的锁上好了以后，进行 secondaryRows 的 Prewrite 流程：
+3. 将 PrimaryRow 的锁上好了以后，进行 SecondaryRows 的 Prewrite 流程：
 
    - 类似 PrimaryRow 的上锁流程，只不过锁的内容为事务开始时间 `startTs` 及 PrimaryRow 的信息
    - 检查的事项同 PrimaryRow 的一致

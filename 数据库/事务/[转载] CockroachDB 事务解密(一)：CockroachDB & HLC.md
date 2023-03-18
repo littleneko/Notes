@@ -16,7 +16,7 @@ Google Spanner 和 CockroachDB 都采用了去中心化的设计理念，因此�
 
 
 
-HLC 由 WallTime 和 LogicTime 两部分组成（WallTime 为节点 n 当前已知的最大的物理时间，通过先判断 WallTime，再判断 LogicTime 确定两个事件的先后顺序），时间获取算法如下所示（其中 WallTime 用 l.j 表示，LogicTime 用 c.j 表示，物理时间用 pt.j 表示）：
+HLC 由 WallTime 和 LogicTime 两部分组成（WallTime 为节点 n 当前已知的最大的物理时间，通过先判断 WallTime，再判断 LogicTime 确定两个事件的先后顺序），时间获取算法如下所示（其中 WallTime 用 `l.j` 表示，LogicTime 用 `c.j` 表示，物理时间用 `pt.j` 表示）：
 
 ```
 Initially l.j := 0; c.j := 0
@@ -33,9 +33,9 @@ Receive event of message m
     l'.j := l.j;
     l.j := max (l'.j, l.m, pt.j);
     If (l.j = l'.j = l.m) then c.j := max(c.j, c.m) + 1	// 本地 WallTime == 本地 pt == 对方 WallTime
-    Elseif (l.j = l'.j) then c.j := c.j + 1			    // 本地 WallTime > 对方 WallTime && 本地 WallTime > 本地 pt
-    Elseif (l.j = l'.m) then c.j := c.m + 1			    // 本地 WallTime < 对方 WallTime && 本地 WallTime > 本地 pt
-    Else c.j := 0										// 本地 pt > 本地 WallTime && 本地 pt > 对方 WallTime
+    Elseif (l.j = l'.j) then c.j := c.j + 1			        // 本地 WallTime > 对方 WallTime && 本地 WallTime > 本地 pt
+    Elseif (l.j = l'.m) then c.j := c.m + 1			        // 本地 WallTime < 对方 WallTime && 本地 WallTime > 本地 pt
+    Else c.j := 0										                    // 本地 pt > 本地 WallTime && 本地 pt > 对方 WallTime
     Timestamp with l.j, c.j
 ```
 

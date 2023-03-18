@@ -107,7 +107,7 @@ Transaction Record 写入本身也是一次写操作，在 Write Pipeline 机制
 
 ## Atomicity
 
-CockroachDB 通过维护 write intent 和 Transaction record 来保证事务的原子性。关于这两者的定义，上文中已有介绍。Transaction Record 保存在 System Range 中，能够表示当前事务的不同状态，包括 pending, staging, committed 和 aborted，并确保 write intent 的可见性能够被原子性地改变。在长事务中，coordinator 节点还会利用心跳包来维护处于 pending 阶段的 transaction record。
+CockroachDB 通过维护 Write Intent 和 Transaction Record 来保证事务的原子性。关于这两者的定义，上文中已有介绍。Transaction Record 保存在 System Range 中，能够表示当前事务的不同状态，包括 pending staging committed 和 aborted，并确保 Write Intent 的可见性能够被原子性地改变。在长事务中，coordinator 节点还会利用心跳包来维护处于 pending 阶段的 transaction record。
 
 当事务执行过程中遇到另一个事务写入的 write intent 时，就会触发一个 intent resolving 流程，读取并解析 transaction record 中的信息，并根据这些信息使用不同的策略来进行事务处理：
 
