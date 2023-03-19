@@ -15,6 +15,7 @@ Notes
         * [2. gh-ost 原理](./MySQL/gh-ost/2.%20gh-ost%20%E5%8E%9F%E7%90%86.md)
         * [gh-ost atomic cutover](./MySQL/gh-ost/gh-ost%20atomic%20cutover.md)
 1. **其他**
+    * [LVM](./%E5%85%B6%E4%BB%96/LVM.md)
     * [OpenWrt](./%E5%85%B6%E4%BB%96/OpenWrt.md)
 1. **学习笔记**
     1. **C++**
