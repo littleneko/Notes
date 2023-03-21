@@ -148,6 +148,7 @@ Notes
         * [leveldb (2): SSTable](./%E6%BA%90%E7%A0%81%E9%98%85%E8%AF%BB%E7%AC%94%E8%AE%B0/leveldb/leveldb%20%282%29%3A%20SSTable.md)
         * [leveldb (3): 读写流程和 Recovery](./%E6%BA%90%E7%A0%81%E9%98%85%E8%AF%BB%E7%AC%94%E8%AE%B0/leveldb/leveldb%20%283%29%3A%20%E8%AF%BB%E5%86%99%E6%B5%81%E7%A8%8B%E5%92%8C%20Recovery.md)
         * [leveldb (4): Compaction](./%E6%BA%90%E7%A0%81%E9%98%85%E8%AF%BB%E7%AC%94%E8%AE%B0/leveldb/leveldb%20%284%29%3A%20Compaction.md)
+        * [leveldb 中的数据结构和基础库](./%E6%BA%90%E7%A0%81%E9%98%85%E8%AF%BB%E7%AC%94%E8%AE%B0/leveldb/leveldb%20%E4%B8%AD%E7%9A%84%E6%95%B0%E6%8D%AE%E7%BB%93%E6%9E%84%E5%92%8C%E5%9F%BA%E7%A1%80%E5%BA%93.md)
 1. **读书笔记**
     1. **C++ 并发编程实战**
         * [C++ 并发编程(1)：线程 (std::thread)](./%E8%AF%BB%E4%B9%A6%E7%AC%94%E8%AE%B0/C%2B%2B%20%E5%B9%B6%E5%8F%91%E7%BC%96%E7%A8%8B%E5%AE%9E%E6%88%98/C%2B%2B%20%E5%B9%B6%E5%8F%91%E7%BC%96%E7%A8%8B%281%29%EF%BC%9A%E7%BA%BF%E7%A8%8B%20%28std%3A%3Athread%29.md)
