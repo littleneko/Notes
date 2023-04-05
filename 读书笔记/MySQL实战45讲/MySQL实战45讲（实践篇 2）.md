@@ -12,17 +12,17 @@
 
 4. 查看是否使用==**临时文件排序**==的方法：使用 OPTIMIZER_TRACE（略）
 
-2. ==**rowid 排序**==： `max_length_for_sort_data` 是 MySQL 中专门控制用于排序的**行数据**的长度的一个参数。它的意思是，如果单行的长度超过这个值，MySQL 就认为单行太大，要换一个算法。
+5. ==**rowid 排序**==： `max_length_for_sort_data` 是 MySQL 中专门控制用于排序的**行数据**的长度的一个参数。它的意思是，如果单行的长度超过这个值，MySQL 就认为单行太大，要换一个算法。
 
     <img src="https://littleneko.oss-cn-beijing.aliyuncs.com/img/1586270551663-678dd245-e1ab-4801-b558-c8d210177c80.png" alt="image.png" style="zoom:80%;" />
 
-4. 使用索引排序，添加 (city, name) 联合索引
+6. 使用索引排序，添加 (city, name) 联合索引
 
     <img src="https://littleneko.oss-cn-beijing.aliyuncs.com/img/1586270857299-05eb74cd-30b4-4fdf-87db-f5fc094a36ae.png" alt="image.png" style="zoom:80%;" />
-    
-    7. 覆盖索引排序，添加 (city, name, age) 的联合索引
-    
-       <img src="https://littleneko.oss-cn-beijing.aliyuncs.com/img/df4b8e445a59c53df1f2e0f115f02cd6.jpg" alt="img" style="zoom: 40%;" />
+
+7. 覆盖索引排序，添加 (city, name, age) 的联合索引
+
+   <img src="https://littleneko.oss-cn-beijing.aliyuncs.com/img/df4b8e445a59c53df1f2e0f115f02cd6.jpg" alt="img" style="zoom: 40%;" />
 
 
 # 17 | 如何正确地显示随机消息？
