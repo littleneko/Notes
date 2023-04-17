@@ -42,11 +42,11 @@ std::thread my_thread([]{
 });
 ```
 > **Tips**:
-> 使用类成员函数初始化 thread 时需要传递成员函数的地址和对象的指针 (`std::thread my_thread(&foo::bar, &f);`)。实际上对于普通函数来说，函数名即是函数指针也就是函数的地址，但是对于类成员函数来说需要显示得取地址（如果熟悉 std::bind 会发现这里的用法和 std::bind 几乎一样）。
-
+> 使用类成员函数初始化 thread 时需要传递成员函数的地址和对象的指针 (`std::thread my_thread(&foo::bar, &f);`)。实际上对于普通函数来说，函数名即是函数指针也就是函数的地址，但是对于类成员函数来说需要显示得取地址（如果熟悉 `std::bind` 会发现这里的用法和 `std::bind` 几乎一样）。
 
 **Notes 1**：
 **必须保证线程结束之前,访问数据的有效性**
+
 ```cpp
 struct func {
 	int& i;	// 注意 i 是引用
@@ -169,7 +169,8 @@ void not_oops(int some_param) {
 }
 ```
 **Notes 4**:
-**对于需要传递引用作为参数的情形，需要使用 **`**std::ref**`** 将参数转化成引用的形式** 
+**对于需要传递引用作为参数的情形，需要使用 `std::ref` 将参数转化成引用的形式** 
+
 ```cpp
 void update_data_for_widget(widget_id w, widget_data& data); // 1
 
@@ -182,7 +183,8 @@ void oops_again(widget_id w) {
 }
 ```
 **Notes 5:**
-**对于只支持移动的类型，需要使用 **`**std::move**`** 转移对象所有权到新线程中**
+**对于只支持移动的类型，需要使用 `std::move` 转移对象所有权到新线程中**
+
 ```cpp
 void process_big_object(std::unique_ptr<big_object>);
 std::unique_ptr<big_object> p(new big_object);

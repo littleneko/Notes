@@ -17,12 +17,12 @@
 - 这个操作没有你想象地快。
 - 如果你尝试通过看似简单的原子操作控制对一些资源的访问，你的程序有很大几率会 crash。
 # Cacheline
-没有任何竞争或只被一个线程访问的原子操作是比较快的，“竞争”指的是多个线程同时访问同一个 [cacheline](https://en.wikipedia.org/wiki/CPU_cache#Cache_entries)。现代 CPU为了以低价格获得高性能，大量使用了 cache，并把 cache 分了多级。百度内常见的 Intel E5-2620 拥有 32K 的 L1 dcache 和 icache，256K 的 L2 cache 和 15M 的 L3 cache。其中 L1 和 L2 cache 为每个核心独有，L3 则所有核心共享。一个核心写入自己的 L1 cache 是极快的(4 cycles, \~2ns)，但当另一个核心读或写同一处内存时，它得确认看到其他核心中对应的 cacheline。对于软件来说，这个过程是原子的，不能在中间穿插其他代码，只能等待 CPU 完成[一致性同步](https://en.wikipedia.org/wiki/Cache_coherence)，这个复杂的硬件算法使得原子操作会变得很慢，在 E5-2620 上竞争激烈时 fetch_add 会耗费 700 纳秒左右。访问被多个线程频繁共享的内存往往是比较慢的。比如像一些场景临界区看着很小，但保护它的 spinlock 性能不佳，因为spinlock 使用的 exchange, fetch_add 等指令必须等待最新的 cacheline，看上去只有几条指令，花费若干微秒并不奇怪。
+没有任何竞争或只被一个线程访问的原子操作是比较快的，“竞争”指的是多个线程同时访问同一个 [cacheline](https://en.wikipedia.org/wiki/CPU_cache#Cache_entries)。现代 CPU 为了以低价格获得高性能，大量使用了 cache，并把 cache 分了多级。百度内常见的 Intel E5-2620 拥有 32K 的 L1 dcache 和 icache，256K 的 L2 cache 和 15M 的 L3 cache。其中 L1 和 L2 cache 为每个核心独有，L3 则所有核心共享。一个核心写入自己的 L1 cache 是极快的(4 cycles, \~2ns)，但当另一个核心读或写同一处内存时，它得确认看到其他核心中对应的 cacheline。对于软件来说，这个过程是原子的，不能在中间穿插其他代码，只能等待 CPU 完成[一致性同步](https://en.wikipedia.org/wiki/Cache_coherence)，这个复杂的硬件算法使得原子操作会变得很慢，在 E5-2620 上竞争激烈时 fetch_add 会耗费 700 纳秒左右。访问被多个线程频繁共享的内存往往是比较慢的。比如像一些场景临界区看着很小，但保护它的 spinlock 性能不佳，因为spinlock 使用的 exchange、fetch_add 等指令必须等待最新的 cacheline，看上去只有几条指令，花费若干微秒并不奇怪。
 
 
 要提高性能，就要避免让 CPU 频繁同步 cacheline。这不单和原子指令本身的性能有关，还会影响到程序的整体性能。最有效的解决方法很直白：**尽量避免共享**。
 
-- 一个依赖全局多生产者多消费者队列 (MPMC) 的程序难有很好的多核扩展性，因为这个队列的极限吞吐取决于同步cache 的延时，而不是核心的个数。最好是用多个 SPMC 或多个 MPSC 队列，甚至多个 SPSC 队列代替，在源头就规避掉竞争。
+- 一个依赖全局多生产者多消费者队列 (MPMC) 的程序难有很好的多核扩展性，因为这个队列的极限吞吐取决于同步 cache 的延时，而不是核心的个数。最好是用多个 SPMC 或多个 MPSC 队列，甚至多个 SPSC 队列代替，在源头就规避掉竞争。
 - 另一个例子是计数器，如果所有线程都频繁修改一个计数器，性能就会很差，原因同样在于不同的核心在不停地同步同一个 cacheline。如果这个计数器只是用作打打日志之类的，那我们完全可以让每个线程修改 thread-local 变量，在需要时再合并所有线程中的值，性能可能有[几十倍的差别](https://github.com/apache/incubator-brpc/blob/master/docs/cn/bvar.md)。
 
 ==一个相关的编程陷阱是 false sharing：对那些不怎么被修改甚至只读变量的访问，由于同一个 cacheline 中的其他变量被频繁修改，而不得不经常等待 cacheline 同步而显著变慢了。**多线程中的变量尽量按访问规律排列，频繁被其他线程修改的变量要放在独立的 cacheline 中**==。要让一个变量或结构体按 cacheline 对齐，可以 include <butil/macros.h> 后使用 `BAIDU_CACHELINE_ALIGNMENT` 宏，请自行 grep brpc 的代码了解用法。
@@ -104,5 +104,6 @@ mutex 导致低性能往往是因为临界区过大（限制了并发度），�
 
 
 
+---
 
 [https://github.com/apache/incubator-brpc/blob/master/docs/cn/atomic_instructions.md](https://github.com/apache/incubator-brpc/blob/master/docs/cn/atomic_instructions.md)

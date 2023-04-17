@@ -45,3 +45,9 @@ linux 一般使用 non-blocking IO 提高 IO 并发度。当 IO 并发度很低�
 # The full picture
 
 ![img](https://littleneko.oss-cn-beijing.aliyuncs.com/img/rpc_flow.png)
+
+
+
+---
+
+[https://github.com/apache/brpc/blob/master/docs/cn/io.md](https://github.com/apache/brpc/blob/master/docs/cn/io.md)

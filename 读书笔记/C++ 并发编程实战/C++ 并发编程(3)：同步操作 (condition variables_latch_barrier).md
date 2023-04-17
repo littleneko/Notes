@@ -40,6 +40,7 @@ void data_processing_thread() {
 
 # std::future
 C++ 标准库中有两种 future，声明在 <future> 头文件中: unique future (`std::future<>`) 和 shared futures (`std::shared_future<>`) ，前者只能与指定事件相关联，而后者就能关联多个事件，后者的实现中，所有实例会在同时变为就绪状态，并且可以访问与事件相关的数据。
+
 future 对象本身并不提供同步访问，当多个线程需要访问一个独立 future 对象时，必须使用互斥量或类似同步机制进行保护。不过，当多个线程对一个 `std::shared_future<>` 副本进行访问，即使同一个异步结果，也不需要同步 future。
 
 
