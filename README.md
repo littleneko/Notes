@@ -149,10 +149,12 @@ Notes
         * [[转载] etcd raft 设计与实现(一)](./%E6%BA%90%E7%A0%81%E9%98%85%E8%AF%BB%E7%AC%94%E8%AE%B0/etcd/%5B%E8%BD%AC%E8%BD%BD%5D%20etcd%20raft%20%E8%AE%BE%E8%AE%A1%E4%B8%8E%E5%AE%9E%E7%8E%B0%28%E4%B8%80%29.md)
         * [[转载] etcd raft 设计与实现(二)](./%E6%BA%90%E7%A0%81%E9%98%85%E8%AF%BB%E7%AC%94%E8%AE%B0/etcd/%5B%E8%BD%AC%E8%BD%BD%5D%20etcd%20raft%20%E8%AE%BE%E8%AE%A1%E4%B8%8E%E5%AE%9E%E7%8E%B0%28%E4%BA%8C%29.md)
     1. **leveldb**
-        * [leveldb (1): 基本概念和数据结构](./%E6%BA%90%E7%A0%81%E9%98%85%E8%AF%BB%E7%AC%94%E8%AE%B0/leveldb/leveldb%20%281%29%3A%20%E5%9F%BA%E6%9C%AC%E6%A6%82%E5%BF%B5%E5%92%8C%E6%95%B0%E6%8D%AE%E7%BB%93%E6%9E%84.md)
-        * [leveldb (2): SSTable](./%E6%BA%90%E7%A0%81%E9%98%85%E8%AF%BB%E7%AC%94%E8%AE%B0/leveldb/leveldb%20%282%29%3A%20SSTable.md)
-        * [leveldb (3): 读写流程和 Recovery](./%E6%BA%90%E7%A0%81%E9%98%85%E8%AF%BB%E7%AC%94%E8%AE%B0/leveldb/leveldb%20%283%29%3A%20%E8%AF%BB%E5%86%99%E6%B5%81%E7%A8%8B%E5%92%8C%20Recovery.md)
-        * [leveldb (4): Compaction](./%E6%BA%90%E7%A0%81%E9%98%85%E8%AF%BB%E7%AC%94%E8%AE%B0/leveldb/leveldb%20%284%29%3A%20Compaction.md)
+        * [leveldb (1): 基本概念](./%E6%BA%90%E7%A0%81%E9%98%85%E8%AF%BB%E7%AC%94%E8%AE%B0/leveldb/leveldb%20%281%29%3A%20%E5%9F%BA%E6%9C%AC%E6%A6%82%E5%BF%B5.md)
+        * [leveldb (2): MemTable](./%E6%BA%90%E7%A0%81%E9%98%85%E8%AF%BB%E7%AC%94%E8%AE%B0/leveldb/leveldb%20%282%29%3A%20MemTable.md)
+        * [leveldb (3): WAL](./%E6%BA%90%E7%A0%81%E9%98%85%E8%AF%BB%E7%AC%94%E8%AE%B0/leveldb/leveldb%20%283%29%3A%20WAL.md)
+        * [leveldb (4): SSTable](./%E6%BA%90%E7%A0%81%E9%98%85%E8%AF%BB%E7%AC%94%E8%AE%B0/leveldb/leveldb%20%284%29%3A%20SSTable.md)
+        * [leveldb (5): 读写流程和 Recovery](./%E6%BA%90%E7%A0%81%E9%98%85%E8%AF%BB%E7%AC%94%E8%AE%B0/leveldb/leveldb%20%285%29%3A%20%E8%AF%BB%E5%86%99%E6%B5%81%E7%A8%8B%E5%92%8C%20Recovery.md)
+        * [leveldb (6): Compaction](./%E6%BA%90%E7%A0%81%E9%98%85%E8%AF%BB%E7%AC%94%E8%AE%B0/leveldb/leveldb%20%286%29%3A%20Compaction.md)
         * [leveldb 中的数据结构和基础库](./%E6%BA%90%E7%A0%81%E9%98%85%E8%AF%BB%E7%AC%94%E8%AE%B0/leveldb/leveldb%20%E4%B8%AD%E7%9A%84%E6%95%B0%E6%8D%AE%E7%BB%93%E6%9E%84%E5%92%8C%E5%9F%BA%E7%A1%80%E5%BA%93.md)
     1. **libuv**
         * [libuv Design overview](./%E6%BA%90%E7%A0%81%E9%98%85%E8%AF%BB%E7%AC%94%E8%AE%B0/libuv/libuv%20Design%20overview.md)

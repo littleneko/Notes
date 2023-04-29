@@ -11,8 +11,8 @@ LevelDB 整体由以下 6 个模块构成：
 * **MemTable**：KV 数据在内存的存储格式，由 SkipList 组织，整体有序。
 
 * **Immutable MemTable**：MemTable 达到一定阈值后变为不可写的 MemTable，等待被 Flush 到磁盘上。
-* **Log**：有点类似于文件系统的 Journal，用来保证 Crash 不丢数`据，支持批量写的原子操作，转换随机写为顺序写。
-* **SSTable**：KV 数据在磁盘的存储格式，文件里面的 Key 整体有序，一旦生成便是只读的。L0 可能会有 Overlap，其他层 sstable 之间都是有序的。
+* **WAL(Write Ahead Log)**：有点类似于文件系统的 Journal，用来保证 Crash 不丢数据，支持批量写的原子操作，转换随机写为顺序写。
+* **SSTable**：KV 数据在磁盘的存储格式，文件里面的 Key 整体有序，一旦生成便是只读的。L0 可能会有 overlap，其他层 sstable 之间都是有序的。
 * **Manifest**：增量的保存 DB 的状态信息，使得重启或者故障后可以恢复到退出前的状态。
 * **Current**：记录当前最新的 Manifest 文件名。
 
@@ -70,7 +70,7 @@ private:
 
 > **Tips**:
 >
-> 因为 Slice 只是数据的一个引用，并不拥有 data_ 指向内存的所有权，在有些需要返回 Slice 的地方，会提供一个 `std::string*` 类型的 scratch 参数，用于把数据存储到 scratch 中，然后用 *scratch 初始化 Slice。
+> 因为 Slice 只是数据的一个引用，并不拥有 data_ 指向内存的所有权，在有些需要返回 Slice 的地方，会提供一个 `std::string*` 类型的 scratch 参数，用于把数据存储到 scratch 中，然后用 scratch 初始化 Slice。
 >
 > e.g. Reader 中有如下函数：
 >
@@ -427,184 +427,7 @@ private:
 
 compact 过程中会有一系列改变当前 Version 的操作（FileNumber 增加，删除 input 的 sstable，增加输出的 sstable），为了缩小 Version 切换的时间点，将这些操作封装成 VersionEdit，compact 完成时，将 VersionEdit 中的操作一次应用到当前 Version 即可得到最新状态的 Version。
 
-# 数据结构和存储格式
-
-## MemTable
-
-```cpp
-class MemTable {
- public:
-  // Return an iterator that yields the contents of the memtable.
-  //
-  // The caller must ensure that the underlying MemTable remains live
-  // while the returned iterator is live.  The keys returned by this
-  // iterator are internal keys encoded by AppendInternalKey in the
-  // db/format.{h,cc} module.
-  Iterator* NewIterator();
-
-  // Add an entry into memtable that maps key to value at the
-  // specified sequence number and with the specified type.
-  // Typically value will be empty if type==kTypeDeletion.
-  void Add(SequenceNumber seq, ValueType type, const Slice& key,
-           const Slice& value);
-
-  // If memtable contains a value for key, store it in *value and return true.
-  // If memtable contains a deletion for key, store a NotFound() error
-  // in *status and return true.
-  // Else, return false.
-  bool Get(const LookupKey& key, std::string* value, Status* s);
- 
-private:
-  struct KeyComparator {
-    const InternalKeyComparator comparator;
-    explicit KeyComparator(const InternalKeyComparator& c) : comparator(c) {}
-    int operator()(const char* a, const char* b) const;
-  };
-
-  typedef SkipList<const char*, KeyComparator> Table;
-
-  KeyComparator comparator_;
-  int refs_;
-  Arena arena_;
-  Table table_;
-};
-```
-
-MemTable 以及 Immutable MemTable 是 KV 数据在内存中的存储格式，底层数据结构都是 SkipList，插入查找的时间复杂度都是 Olog(n)。
-
-MemTable 的大小通过参数 *write_buffer_size* 控制，默认 4MB，最多 5MB dump（最大 batch size 为 1MB）成 SSTable。
-
-当一个 MemTable 大小达到阈值后，将会变成 Immutable MemTable，同时生成一个新的 MemTable 来支持新的写入，Compaction 线程将 Immutable MemTable Flush 到 L0/L1/… 上。所以在LevelDB中，同时最多只会存在两个 MemTable：一个可写的，一个只读的。
-
-### 数据格式
-
-由于 SkipList 是链表形式的，所以我们需要把 KV 数据的映射形式转换成该形式，如图所示，[start, node_end] 区间就代表一个 SkipList Node。
-
-<img src="https://littleneko.oss-cn-beijing.aliyuncs.com/img/v2-00a21206a818ce6d3a9ae0d35b9e0363_1440w.jpg" alt="img" style="zoom:50%;" />
-
-### Comparator
-
-SkipList 插入和查找节点时需要自定义 Comparator，MemTable 初始化时使用 `MemTable::KeyComparator` 作为 SkipList 的 Comparator。`MemTable::KeyComparator` 接受 SkipList Node 数据作为其参数，比较流程是先取出 SkipList Node 中的 InternalKey，然后调用 InternalKeyComparator 的 Compare 方法（先比较 user_key，相同时再比较 SequenceNumber）。
-
-```c++
-static Slice GetLengthPrefixedSlice(const char* data) {
-  uint32_t len;
-  const char* p = data;
-  p = GetVarint32Ptr(p, p + 5, &len);  // +5: we assume "p" is not corrupted
-  return Slice(p, len);
-}
-
-int MemTable::KeyComparator::operator()(const char* aptr,
-                                        const char* bptr) const {
-  // Internal keys are encoded as length-prefixed strings.
-  Slice a = GetLengthPrefixedSlice(aptr);
-  Slice b = GetLengthPrefixedSlice(bptr);
-  return comparator.Compare(a, b);
-}
-```
-
-### Add/Get
-
-Add 接口很简单，主要是生成如上图所示的 SkipList Node 格式，然后调用 `SkipList::Insert()` 插入到 SkipList 中。
-
-
-
-Get 的步骤稍微复杂一些，分为两步：
-
-1. 根据 memtable_key 在 SkipList 中 Seek
-2. 如果找到的 SkipList Node 的 user_key 相等，就算找到，==不需要比较 SequenceNumber 是否相等==；否则出错
-
-首先，SkipList Seek 的语义是找到==第一个**大于等于**给定 Key 的节点==，等于肯定是找到了 user_key 和 SequenceNumber 都相等的记录，大于分为两种情况：
-
-* 没找到给定的 memtable_key 中的 user_key，此时返回的是第一个比 user_key 大的 key
-* ==找到了给定的 memtable_key 中的 user_key，但是 SequenceNumber 比 memtable_key 中的要小（InternalKeyComparator 中 SequenceNumber 逆序排序），也就是找到了一个比指定 SequenceNumber 版本旧的数据==。（可能会有比指定版本更大版本的数据存在）
-
-因此，在 `MemTable::Get()` 实现中，当在 SkipList 中 Seek 返回 `iter.Valid()` 的情况下还需要再次比较 user_key 是否相等（排除第一种情况），而不需要比较 SequenceNumber 是否相等。
-
-综上所述，==**MemTable::Get() 的语义是返回指定 user_key 小于等于 SequenceNumber 的最大版本的值**==。
-
-> **Tips**:
->
-> 在实际的使用中，调用 `MemTable::Get()` 的时候传入的 SequenceNumber 只有两种情况：Snapshot 的 SequenceNumber 和 当前系统最新的 SequenceNumber，前者是查找特定版本的数据，后者是查找最新的 user_key 的数据。（@see: DBImpl::Get()）
-
-## WAL/LOG
-
-WAL 即 Log，每次数据都会先顺序写到 Log 中，然后再写入 MemTable，可以起到转换随机写为顺序写以及保证 Crash 不丢数据的作用。
-
-一个完整的 Log 由多个固定大小的 block 组成，block 大小默认 32KB；block 由一个或者多个 record 组成。
-
-**相关源码**：db/log_format.h, db/log_reader.h/cc, db/log_writer.h/cc
-
-### LOG Format
-
-<img src="https://littleneko.oss-cn-beijing.aliyuncs.com/img/v2-6d05ad55b349ff12653dd9f1b245e96f_1440w.jpg" alt="img" style="zoom:67%;" />
-
-一个 Record 可以跨越多个 Block。
-
-### Record Format
-
-```
-+---------------+-------------+-----------+----------+
-|	Checksum(4B)	|	Length(2B)	|	Type(1B)	|	Data		 |
-+---------------+-------------+-----------+----------+
-```
-
-- checksum：计算 type 和 data 的 CRC。
-- length：data 的长度，2Byte 可表示 64KB，而 block 为 32KB，刚好够用。
-- type：一个 record 可以在一个或者跨越多个 block，类型有 5 种：Full、First、Middle、Last、Zero (预分配连续的磁盘空间用)。
-- data：用户的 kv 数据。
-
-### Read
-
-对 WAL log 的读取通过 `Reader::ReadRecord()` 接口实现，函数原型如下：
-
-```cpp
-  // Read the next record into *record.  Returns true if read
-  // successfully, false if we hit end of the input.  May use
-  // "*scratch" as temporary storage.  The contents filled in *record
-  // will only be valid until the next mutating operation on this
-  // reader or the next mutation to *scratch.
-  bool ReadRecord(Slice* record, std::string* scratch);
-```
-
-另外，在初始化啊 Reader 的时候，可以传入一个 initial_offset 表示从某个位置开始读取。因为 Log 的读取以 block 为单位，所以在开始读取前会直接跳转到该 offset 所在的 block 的起始位置（`Reader::SkipToInitialBlock()`）。
-
-> 目前所有用到 Reader 的地方 initial_offset 都是 0。
-
-实际在读取的时候会跳过 record data start offset 小于 initial_offset 的 record：
-
-```cpp
-    // Skip physical record that started before initial_offset_
-    if (end_of_buffer_offset_ - buffer_.size() - kHeaderSize - length <
-        initial_offset_) {
-      result->clear();
-      return kBadRecord;
-    }
-```
-
----
-
-ReadRecord 函数第二个参数 scratch 表示返回的 record 的内存，不过 Reader 本身拥有一个 block 大小的 buffer，如果 record 没有跨 block（即 FULL 类型的 record），那么返回的 Slice 直接指向这个内部的 buffer，不会用到这个 scratch；只有在跨 block 的 record 时，才会把 record copy 到 scratch 中。
-
-### Write
-
-log 的 写入很简单，需要注意的是如果当前 block 剩余空间小于 kHeaderSize (7 byte)，已经放不下一个完整的 header 了，就把该 block 剩余空间全填 0：
-
-```cpp
-    const int leftover = kBlockSize - block_offset_;
-    assert(leftover >= 0);
-    if (leftover < kHeaderSize) {
-      // Switch to a new block
-      if (leftover > 0) {
-        // Fill the trailer (literal below relies on kHeaderSize being 7)
-        static_assert(kHeaderSize == 7, "");
-        dest_->Append(Slice("\x00\x00\x00\x00\x00\x00", leftover));
-      }
-      block_offset_ = 0;
-    }
-```
-
-## Manifest
+# Manifest
 
 Manifest 文件以增量的方式持久化版本信息，DB 中可能包含多个 Manifest 文件，需要 Current 文件来指向最新的 Manifest。
 
