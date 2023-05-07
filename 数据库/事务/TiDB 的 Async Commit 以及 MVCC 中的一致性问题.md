@@ -71,7 +71,7 @@ TiDB 通过 MVCC 实现快照隔离，事务在开始时会向 TSO 获取 Start 
 
 > **TIPS**:
 >
-> 如果读不推高 Max TS 会发生什么？假设事务 T1 进入提交流程，从 TSO 上获取了一个时间戳作为其 Min Commit TS，然后读事务 T2 从 TSO 获取了一个新的时间戳作为其 Read TS（Resd TS 一定比 Min Commit TS 大），T2 开始读 x，T1 对 x 加锁。因为在 T1 从 TSO 拿时间戳和对 x 加锁之间有个 GAP，这个时间段内的读是可以读到旧版本的数据的。
+> 如果读不推高 Max TS 会发生什么？假设事务 T1 进入提交流程，从 TSO 上获取了一个时间戳作为其 Min Commit TS，然后读事务 T2 从 TSO 获取了一个新的时间戳作为其 Read TS（Resd TS 一定比 Min Commit TS 大），T2 开始读 x，T1 对 x 加锁。==因为在 T1 从 TSO 拿时间戳和对 x 加锁之间有个 GAP，这个时间段内的读是可以读到旧版本的数据的==。
 >
 > 假设读不推高 min_commit_ts：
 >
@@ -87,6 +87,8 @@ TiDB 通过 MVCC 实现快照隔离，事务在开始时会向 TSO 获取 Start 
 > |                                         | Read(x, read_ts) = 2 |
 >
 > 可以看到，T2 出现了不可重复读，如果 T2 的 Read 在 T1 Lock Row 之后发生，就会等锁，不会出现不可重复读的情况。
+>
+> ==而在 TiDB 4.0 以及之前的实现中，Prewrite 阶段完成加锁后，到了 commit 阶段才从 TSO 拿 commit_ts，如果有一个 read 事务的 start_ts > commit_ts ，那么读的时候一定会等待锁，不会出现上面的读到旧版本数据的情况；但是在有了 Async Commit 后，min_commit_ts 是在 prewrite 开始，加锁之前就生成了，如果有一个 read 事务的 start_ts > min_commit_ts，那么读的时候如果还没加锁，就有可能读到旧版本的数据。==
 
 #### 保证线性一致性
 
@@ -102,6 +104,10 @@ TiDB 通过 MVCC 实现快照隔离，事务在开始时会向 TSO 获取 Start 
 
 
 循序性要求逻辑上发生的顺序不能违反物理上的先后顺序。具体地说，有两个事务 T1 和 T2，如果在 T1 提交后，T2 才开始提交，那么逻辑上 T1 的提交就应该发生在 T2 之前，也就是说 T1 的 Commit TS 应该小于 T2 的 Commit TS。
+
+> **TIPS**:
+>
+> 如果 T1 和 T2 的提交过程在时间上有重叠，那么它们逻辑上的提交的先后顺序则是无法确定的。
 
 ==为了保证这个特性，TiDB 会在 prewrite 之前向 PD TSO 获取一个时间戳作为 Min Commit TS 的最小约束。由于前面实时性的保证，T2 在 prewrite 前获取的这个时间戳必定大于等于 T1 的 Commit TS==，而这个时间戳也不会用于更新 Max TS，所以也不可能发生等于的情况。综上我们可以保证 T2 的 Commit TS 大于 T1 的 Commit TS，即满足了循序性的要求。
 
