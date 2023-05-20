@@ -79,7 +79,7 @@
 > - For other search conditions, `InnoDB` _locks the index range scanned_, using [_gap locks_](https://dev.mysql.com/doc/refman/5.7/en/glossary.html#glos_gap_lock) or [_next-key locks_](https://dev.mysql.com/doc/refman/5.7/en/glossary.html#glos_next_key_lock) to block insertions by other sessions into the gaps covered by the range.
 >
 > **READ COMMITTED**
-> For locking reads ([`SELECT`](https://dev.mysql.com/doc/refman/5.7/en/select.html) with `FOR UPDATE` or `LOCK IN SHARE MODE`), [`UPDATE`](https://dev.mysql.com/doc/refman/5.7/en/update.html) statements, and [`DELETE`](https://dev.mysql.com/doc/refman/5.7/en/delete.html) statements, `_InnoDB_`_ locks only index records_, not the gaps before them, and thus permits the free insertion of new records next to locked records. 
+> For locking reads ([`SELECT`](https://dev.mysql.com/doc/refman/5.7/en/select.html) with `FOR UPDATE` or `LOCK IN SHARE MODE`), [`UPDATE`](https://dev.mysql.com/doc/refman/5.7/en/update.html) statements, and [`DELETE`](https://dev.mysql.com/doc/refman/5.7/en/delete.html) statements, `InnoDB` _locks only index records_, not the gaps before them, and thus permits the free insertion of new records next to locked records. 
 >
 > Only row-based binary logging is supported with the READ COMMITTED isolation level.
 >
@@ -106,7 +106,7 @@
 
         <img src="https://littleneko.oss-cn-beijing.aliyuncs.com/img/1586966593595-03a09c85-965d-44e7-b652-e7da3f1d81f2.png" alt="image.png" style="zoom: 80%;" />
 
-        statement格式的binlog在从库重放的情况：
+        statement 格式的 binlog 在从库重放的情况：
         ```
         update t set d=5 where id=0; /*(0,0,5)*/
         update t set c=5 where id=0; /*(0,5,5)*/
@@ -121,11 +121,11 @@
 
 4. 如何解决幻读：间隙锁（Gap Lock）
 
-3. **⭐️==跟间隙锁存在冲突关系的，是“往这个间隙中插入一个记录”这个操作。间隙锁之间都不存在冲突关系==。**如下图所示，因为表里面没有 7 这行记录，两个session 都会加 (5, 10) 的间隙锁，但是不冲突
+3. **⭐️==跟间隙锁存在冲突关系的，是“往这个间隙中插入一个记录”这个操作，间隙锁之间都不存在冲突关系==。**如下图所示，因为表里面没有 7 这行记录，两个session 都会加 (5, 10) 的间隙锁，但是不冲突
 
     <img src="https://littleneko.oss-cn-beijing.aliyuncs.com/img/1586966849982-b3b8f168-9f22-4d7d-b627-9db7ee9a51cf.png" alt="image.png" style="zoom: 80%;" />
 
-6. Gap Lock 和行锁合称 next-key lock，每个 next-key lock 是前开后闭区间
+6. Gap Lock 和行锁合称 next-key lock，每个 next-key lock 是==**前开后闭**==区间
 
 7. ⭐️==**间隙锁的引入，可能会导致同样的语句锁住更大的范围，这其实是影响了并发度的，还可能造成死锁**==
 
@@ -207,7 +207,7 @@ A1: 读提交隔离级别一般没有 gap lock，不过也有例外情况， 比
 
 6. 没有提交的事务的 redo log 写入到磁盘中的场景
    1. InnoDB 有一个后台线程，每隔 1 秒，就会把 redo log buffer 中的日志，调用 write 写到文件系统的 page cache，然后调用 fsync 持久化到磁盘
-   1. redo log buffer 占用的空间即将达到 innodb_log_buffer_size 一半的时候，后台线程会主动写盘
+   1. redo log buffer 占用的空间即将达到 *innodb_log_buffer_size* 一半的时候，后台线程会主动写盘
    1. 并行的事务提交的时候，顺带将这个事务的 redo log buffer 持久化到磁盘
    
 8. **group commit** ⭐️
@@ -227,7 +227,7 @@ A1: 读提交隔离级别一般没有 gap lock，不过也有例外情况， 比
 > **TIPS**:
 > `sync_binlog` 和 `binlog_group_commit_sync_no_delay_count` 的最大区别主要在于，数据的丢失与否
 >
-> - `sync_binlog = N` ：每个事务 write 后就响应客户端了。刷盘是 N 次事务后刷盘。N 次事务之间宕机，数据丢失。
+> - `sync_binlog = N` ：每个事务 write 后就响应客户端了。刷盘是 N 次事务后刷盘，N 次事务之间宕机，数据丢失。
 > - `binlog_group_commit_sync_no_delay_count = N` ： 必须等到 N 个后才能提交。换言之，会增加响应客户端的时间。但是一旦响应了，那么数据就一定持久化了。宕机的话，数据是不会丢失
 >
 > sync_binlog=0 的情况下，sync_delay 和 sync_no_delay_count 的逻辑先走，因此该等还是会等。等到满足了这两个条件之一，就进入 sync_binlog 阶段。这时候如果判断 sync_binlog=0，就直接跳过，还是不调 fsync
@@ -264,7 +264,7 @@ mysqlbinlog master.000001  --start-position=2738 --stop-position=2973 | mysql -h
 
 5. 双主架构下 MySQL 是如何解决循环复制问题的：根据 server id 判断是否是自己生成的 binlog
 5. 可能出现循环复制的情况：
-   1. 主更改了server id
+   1. 主更改了 server id
    1. A -> B <-> C
 7. 出现循环复制后的解决办法： `stop slave；CHANGE MASTER TO IGNORE_SERVER_IDS=(server_id_of_B);start slave;` 
 
@@ -317,7 +317,7 @@ A1: 不是，change buffer 是用在普通索引上的，主键索引是唯一�
 
 2. **按表分发策略**（MySQL 5.5 ali patch）：如果有跨表的事务，是要把两张表放在一起考虑的。
 
-   可以看到，每个 worker 线程对应一个 hash 表，用于保存当前正在这个 worker 的“执行队列”里的事务所涉及的表。hash 表的 key 是“库名. 表名”，value 是一个数字，表示队列中有多少个事务修改这个表。
+   可以看到，每个 worker 线程对应一个 hash 表，用于保存当前正在这个 worker 的“执行队列”里的事务所涉及的表。hash 表的 key 是“库名.表名”，value 是一个数字，表示队列中有多少个事务修改这个表。
 
    在有事务分配给 worker 时，事务里面涉及的表会被加到对应的 hash 表中。worker 执行完成后，这个表会被从 hash 表中去掉。
 
@@ -423,7 +423,7 @@ A1: 不是，change buffer 是用在普通索引上的，主键索引是唯一�
 
 2. **Logical Clock**
 
-   在上面的并行执行中，last_committed = 1 的事务需要等待 last_committed = 0 的 7 个事务完成，同理，last_committed = 7 的 6 个事务需要等待last_committed = 1 的事务完成。但是 MySQL 5.7 还做了额外的优化，可进一步增大回放的并行度。思想是 LOCK-BASED，即==如果两个事务有**重叠**，则两个事务的锁依然是没有冲突的，依然可以并行回放==。
+   在上面的并行执行中，last_committed = 1 的事务需要等待 last_committed = 0 的 7 个事务完成，同理，last_committed = 7 的 6 个事务需要等待last_committed = 1 的事务完成。但是 MySQL 5.7 还做了额外的优化，可进一步增大回放的并行度。思想是 LOCK-BASED，即==如果两个事务 Prepare 到 Commit 阶段有**重叠**，则两个事务的锁依然是没有冲突的，依然可以并行回放==。
 
    ![](https://cdn.nlark.com/yuque/0/2020/webp/385742/1587123512641-6a533ef0-233e-4bcf-8e16-ef6d3f8035d8.webp#align=left&display=inline&height=143&margin=[object Object]&originHeight=286&originWidth=853&size=0&status=done&style=none&width=427)
 

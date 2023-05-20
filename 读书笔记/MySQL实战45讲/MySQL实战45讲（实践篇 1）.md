@@ -3,23 +3,28 @@
 
 
 1. **查询过程**：等值查询普通索引找到第一条记录后还需要继续查找下一条；唯一索引找到第一条满足条件的记录后就会停止。性能影响可以忽略不计，因为MySQL 以页为单位读写，下一条记录大部分情况在同一页，已经读到内存中了。
-1. **Change Buffer**：当需要更新（INSERT、UPDATE、DELETE）一个数据页时，如果数据页在内存中就直接更新，==而如果这个**数据页还没有在内存中**的话，在不影响数据一致性的前提下，InnoDB 会将这些更新操作缓存在 change buffer 中，这样就不需要从磁盘中读入这个数据页了==。
-1. ==**change buffer 在内存中有拷贝，也会被写入到磁盘上**==。change Buffer 和数据页一样，也是物理页的一个组成部分，数据结构也是一颗 **B+ 树**，这棵 B+ 树放在共享表空间中，默认 ibdata1 中
-1. 将 change buffer 中的操作应用到原数据页，得到最新结果的过程称为 merge。除了访问这个数据页会触发 merge 外，系统有后台线程会定期 merge
-1. Change Buffer 的好处：减少读磁盘（随机 IO），语句的执行速度会得到明显的提升；避免占用过多 Buffer Pool 内存，提高内存利用率。使用`innodb_change_buffer_max_size` 设置大小，表示占用 Buffer Pool 的比例
-1. ==**唯一索引的更新就不能使用 change buffer，实际上也只有普通索引可以使用**==
-1. **Change Buffer 优化起作用的场景**
+
+2. **Change Buffer**：当需要更新（INSERT、UPDATE、DELETE）一个数据页时，如果数据页在内存中就直接更新，==而如果这个**数据页还没有在内存中**的话，在不影响数据一致性的前提下，InnoDB 会将这些更新操作缓存在 change buffer 中，这样就不需要从磁盘中读入这个数据页了==。
+
+3. ==**change buffer 在内存中有拷贝，也会被写入到磁盘上**==。change Buffer 和数据页一样，也是物理页的一个组成部分，数据结构也是一颗 **B+ 树**，这棵 B+ 树放在共享表空间中，默认 ibdata1 中
+
+4. 将 change buffer 中的操作应用到原数据页，得到最新结果的过程称为 merge。除了访问这个数据页会触发 merge 外，系统有后台线程会定期 merge
+
+5. Change Buffer 的好处：减少读磁盘（随机 IO），语句的执行速度会得到明显的提升；避免占用过多 Buffer Pool 内存，提高内存利用率。使用`innodb_change_buffer_max_size` 设置大小，表示占用 Buffer Pool 的比例
+
+6. ==**唯一索引的更新就不能使用 change buffer，实际上也只有普通索引可以使用**==
+
+7. **Change Buffer 优化起作用的场景**
    1. 对于==**写多读少**==的业务来说，页面在写完以后马上被访问到的概率比较小，此时 change buffer 的使用效果最好。这种业务模型常见的就是账单类、日志类的系统
    1. 设一个业务的更新模式是写入之后马上会做查询，那么即使满足了条件，将更新先记录在 change buffer，但之后由于马上要访问这个数据页，会立即触发 merge 过程。这样随机访问 IO 的次数不会减少，反而增加了 change buffer 的维护代价。所以，对于这种业务模式来说，change buffer 反而起到了副作用。
+
 8. ==redo log 主要节省的是**随机写磁盘**的 IO 消耗（转成顺序写），而 change buffer 主要节省的则是**随机读磁盘**的 IO 消耗==。
 
-
-
-change buffer 更新过程（假设 k1 在内存中，k2 不在内存中）
+   change buffer 更新过程（假设 k1 在内存中，k2 不在内存中）
 
 ![image.png](https://littleneko.oss-cn-beijing.aliyuncs.com/img/1586006564026-d2745e7a-9f1b-495c-8e2c-7d4d6c029bf4.png)
 
-change buffer 读取过程
+​		change buffer 读取过程
 
 ![image.png](https://littleneko.oss-cn-beijing.aliyuncs.com/img/1586006654239-400eee74-9232-4ed5-8442-9dedebba49bc.png)
 
