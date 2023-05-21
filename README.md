@@ -78,6 +78,7 @@ Notes
     * [TCP Connection State Diagram](./%E5%AD%A6%E4%B9%A0%E7%AC%94%E8%AE%B0/TCP%20Connection%20State%20Diagram.md)
     * [ZooKeeper 临时节点](./%E5%AD%A6%E4%B9%A0%E7%AC%94%E8%AE%B0/ZooKeeper%20%E4%B8%B4%E6%97%B6%E8%8A%82%E7%82%B9.md)
     * [[转载] Linux IO 原理和 Zero-copy 技术全面揭秘](./%E5%AD%A6%E4%B9%A0%E7%AC%94%E8%AE%B0/%5B%E8%BD%AC%E8%BD%BD%5D%20Linux%20IO%20%E5%8E%9F%E7%90%86%E5%92%8C%20Zero-copy%20%E6%8A%80%E6%9C%AF%E5%85%A8%E9%9D%A2%E6%8F%AD%E7%A7%98.md)
+    * [[转载][译] Linux 异步 IO 框架 io_uring：基本原理、程序示例与性能压测（2020）](./%E5%AD%A6%E4%B9%A0%E7%AC%94%E8%AE%B0/%5B%E8%BD%AC%E8%BD%BD%5D%5B%E8%AF%91%5D%20Linux%20%E5%BC%82%E6%AD%A5%20IO%20%E6%A1%86%E6%9E%B6%20io_uring%EF%BC%9A%E5%9F%BA%E6%9C%AC%E5%8E%9F%E7%90%86%E3%80%81%E7%A8%8B%E5%BA%8F%E7%A4%BA%E4%BE%8B%E4%B8%8E%E6%80%A7%E8%83%BD%E5%8E%8B%E6%B5%8B%EF%BC%882020%EF%BC%89.md)
     * [double-checked locking](./%E5%AD%A6%E4%B9%A0%E7%AC%94%E8%AE%B0/double-checked%20locking.md)
     * [golang GC (三色标记法)](./%E5%AD%A6%E4%B9%A0%E7%AC%94%E8%AE%B0/golang%20GC%20%28%E4%B8%89%E8%89%B2%E6%A0%87%E8%AE%B0%E6%B3%95%29.md)
     1. **rust**
