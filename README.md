@@ -17,6 +17,7 @@ Notes
 1. **其他**
     * [LVM](./%E5%85%B6%E4%BB%96/LVM.md)
     * [OpenWrt](./%E5%85%B6%E4%BB%96/OpenWrt.md)
+    * [openvpn](./%E5%85%B6%E4%BB%96/openvpn.md)
 1. **区块链**
     1. **北大肖臻区块链公开课笔记**
         * [10. BTC 分叉](./%E5%8C%BA%E5%9D%97%E9%93%BE/%E5%8C%97%E5%A4%A7%E8%82%96%E8%87%BB%E5%8C%BA%E5%9D%97%E9%93%BE%E5%85%AC%E5%BC%80%E8%AF%BE%E7%AC%94%E8%AE%B0/10.%20BTC%20%E5%88%86%E5%8F%89.md)
@@ -64,19 +65,19 @@ Notes
         * [typedef and alias declaration](./%E5%AD%A6%E4%B9%A0%E7%AC%94%E8%AE%B0/C%2B%2B/typedef%20and%20alias%20declaration.md)
         * [typename and class](./%E5%AD%A6%E4%B9%A0%E7%AC%94%E8%AE%B0/C%2B%2B/typename%20and%20class.md)
         * [volatile in C_C++](./%E5%AD%A6%E4%B9%A0%E7%AC%94%E8%AE%B0/C%2B%2B/volatile%20in%20C_C%2B%2B.md)
-    * [GC](./%E5%AD%A6%E4%B9%A0%E7%AC%94%E8%AE%B0/GC.md)
+    * [Garbage Collector](./%E5%AD%A6%E4%B9%A0%E7%AC%94%E8%AE%B0/Garbage%20Collector.md)
     1. **Java**
         * [Java DCL 单例](./%E5%AD%A6%E4%B9%A0%E7%AC%94%E8%AE%B0/Java/Java%20DCL%20%E5%8D%95%E4%BE%8B.md)
         * [Java 并发编程](./%E5%AD%A6%E4%B9%A0%E7%AC%94%E8%AE%B0/Java/Java%20%E5%B9%B6%E5%8F%91%E7%BC%96%E7%A8%8B.md)
     * [Kafka 消息顺序相关](./%E5%AD%A6%E4%B9%A0%E7%AC%94%E8%AE%B0/Kafka%20%E6%B6%88%E6%81%AF%E9%A1%BA%E5%BA%8F%E7%9B%B8%E5%85%B3.md)
     * [Memory Model](./%E5%AD%A6%E4%B9%A0%E7%AC%94%E8%AE%B0/Memory%20Model.md)
     * [MongoShake](./%E5%AD%A6%E4%B9%A0%E7%AC%94%E8%AE%B0/MongoShake.md)
+    1. **Others**
+        * [cgroup 使用](./%E5%AD%A6%E4%B9%A0%E7%AC%94%E8%AE%B0/Others/cgroup%20%E4%BD%BF%E7%94%A8.md)
     * [RAII](./%E5%AD%A6%E4%B9%A0%E7%AC%94%E8%AE%B0/RAII.md)
     * [TCP Connection State Diagram](./%E5%AD%A6%E4%B9%A0%E7%AC%94%E8%AE%B0/TCP%20Connection%20State%20Diagram.md)
-    1. **Utils**
-        * [cgroup 使用](./%E5%AD%A6%E4%B9%A0%E7%AC%94%E8%AE%B0/Utils/cgroup%20%E4%BD%BF%E7%94%A8.md)
-        * [openvpn](./%E5%AD%A6%E4%B9%A0%E7%AC%94%E8%AE%B0/Utils/openvpn.md)
     * [ZooKeeper 临时节点](./%E5%AD%A6%E4%B9%A0%E7%AC%94%E8%AE%B0/ZooKeeper%20%E4%B8%B4%E6%97%B6%E8%8A%82%E7%82%B9.md)
+    * [[转载] Linux IO 原理和 Zero-copy 技术全面揭秘](./%E5%AD%A6%E4%B9%A0%E7%AC%94%E8%AE%B0/%5B%E8%BD%AC%E8%BD%BD%5D%20Linux%20IO%20%E5%8E%9F%E7%90%86%E5%92%8C%20Zero-copy%20%E6%8A%80%E6%9C%AF%E5%85%A8%E9%9D%A2%E6%8F%AD%E7%A7%98.md)
     * [double-checked locking](./%E5%AD%A6%E4%B9%A0%E7%AC%94%E8%AE%B0/double-checked%20locking.md)
     * [golang GC (三色标记法)](./%E5%AD%A6%E4%B9%A0%E7%AC%94%E8%AE%B0/golang%20GC%20%28%E4%B8%89%E8%89%B2%E6%A0%87%E8%AE%B0%E6%B3%95%29.md)
     1. **rust**
