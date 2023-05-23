@@ -41,7 +41,7 @@ Reactor 模式也有三种不同的方式，下面一一介绍。
 
 ### 2.1.1 Reactor 模式 - 单线程模式
 
-Java 中的 NIO 模式的 Selector 网络通讯，其实就是一个简单的 Reactor 模型。可以说是单线程的 Reactor 模式
+Java 中的 NIO 模式的 Selector 网络通讯，其实就是一个简单的 Reactor 模型，可以说是单线程的 Reactor 模式。
 
 <img src="https://littleneko.oss-cn-beijing.aliyuncs.com/img/v2-5f97abecc66698d6b1ce3034267e1fff_1440w.webp" alt="img" style="zoom: 67%;" />
 
@@ -100,7 +100,7 @@ Reactor 的单线程模式的单线程主要是针对于 I/O 操作而言，也�
 
 针对第二幅图在稍作解释：
 
-Reactor 模式中，用户线程通过向 Reactor 对象注册感兴趣的事件监听，然后事件触发时调用事件处理函数。而 Proactor 模式中，用户线程将 AsynchronousOperation（读 / 写等）、Proactor 以及操作完成时的 CompletionHandler 注册到 AsynchronousOperationProcessor。
+==Reactor 模式中，用户线程通过向 Reactor 对象注册感兴趣的事件监听，然后事件触发时调用事件处理函数。而 Proactor 模式中，用户线程将 AsynchronousOperation（读 / 写等）、Proactor 以及操作完成时的 CompletionHandler 注册到 AsynchronousOperationProcessor。==
 
 AsynchronousOperationProcessor 使用 Facade 模式提供了一组异步操作 API（读 / 写等）供用户使用，当用户线程调用异步 API 后，便继续执行自己的任务。AsynchronousOperationProcessor 会开启独立的内核线程执行异步操作，实现真正的异步。当异步 IO 操作完成时，AsynchronousOperationProcessor 将用户线程与 AsynchronousOperation 一起注册的 Proactor 和 CompletionHandler 取出，然后将 CompletionHandler 与 IO 操作的结果数据一起转发给 Proactor，Proactor 负责回调每一个异步操作的事件完成处理函数 handle_event。虽然 Proactor 模式中每个异步操作都可以绑定一个 Proactor 对象，但是一般在操作系统中，Proactor 被实现为 Singleton 模式，以便于集中化分发操作完成事件。
 
@@ -113,7 +113,7 @@ AsynchronousOperationProcessor 使用 Facade 模式提供了一组异步操作 A
 - Reactor 将 handler 放到 select ()，等待可写就绪，然后调用 write () 写入数据；写完数据后再处理后续逻辑；
 - Proactor 调用 aoi_write 后立刻返回，由内核负责写操作，写完后调用相应的回调函数处理后续逻辑
 
-**Reactor 模式是一种被动的处理**，即有事件发生时被动处理。而 **Proator 模式则是主动发起异步调用**，然后循环检测完成事件。
+==**Reactor 模式是一种被动的处理**，即有事件发生时被动处理。而 **Proator 模式则是主动发起异步调用**，然后循环检测完成事件。==
 
 ### 2.3.2 实现
 
