@@ -245,7 +245,7 @@ Follower 挂了，只要 Leader 还满足过半条件就一切正常。他们挂
 
 ​		Node B 和 Node C 的心跳都可以被所有节点收到，当 CDE 收到 Node B 的心跳后，发现 B 的 term=1，自己的 term=2，会返回 false。
 
-​		Node A B 收到 Node D 的心跳后，发现 term 比自己的 term 大，承认 Node D 为新的 Leader，Node B 转变状态为 Follower，并且丢弃未提交的 log “set 		3”，被新的 log “set 8” 覆盖。
+​		Node A B 收到 Node D 的心跳后，发现 term 比自己的 term 大，承认 Node D 为新的 Leader，Node B 转变状态为 Follower，并且丢弃未提交的 log “set 3”，被新的 log “set 8” 覆盖。
 
 # Links
 

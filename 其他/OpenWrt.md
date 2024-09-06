@@ -15,7 +15,7 @@ OpenWrt 固件的 squashfs 分区会在首次启动时自动扩展到所分配�
 1. 如果要修改的是 IMG 文件，需要先扩展文件的大小，如果 IMG 已经写入了磁盘则直接从第 2 步开始
 
    ```shell
-   				> qemu-img resize openwrt-21.02.6-x86-64-generic-squashfs-combined-efi.img 1040M
+   > qemu-img resize openwrt-21.02.6-x86-64-generic-squashfs-combined-efi.img 1040M
    ```
 
 2. 使用 fdisk 重新分区：如果 IMG 已经写入了磁盘则将文件路径改为磁盘路径即可，例如 `sudo fdisk /dev/sda`
@@ -72,11 +72,8 @@ OpenWrt 固件的 squashfs 分区会在首次启动时自动扩展到所分配�
 6. 新建分区
 
    1. First sector 输入刚刚记下的第 2 个分区的起始位置 `33792`
-
    2. Last sector 输入新分区的大小并按回车，例如 +1G 为分配 1G 大小的分区，注意分配的大小不可超过上面所扩展的大小或磁盘大小，如果要使用所有未使用的空间直接留空按回车即可
-
    3. 不 remove signature
-
 
    ```
    Command (m for help): n
